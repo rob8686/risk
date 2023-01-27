@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "bootstrap": "^5.2.3",
+    "css-loader": "^6.7.3",
+    "style-loader": "^3.3.1"
+  }
+}

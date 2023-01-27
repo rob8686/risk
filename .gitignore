@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+**/__pycache__/
+**/**/__pycache__/
+*.pyc
+*.pyo
+*.dll
+
+# Django settings and secrets
+*.env
+local_settings.py
+
+**/migrations/
+**/**/migrations
+
+# Virtual environment files
+env/
+venv/
+
+# SQLite database file
+db.sqlite3
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# JavaScript files
+*.js
+*.map
+
+# React files
+frontend/build/
+
+# Other files and directories
+*.log
+media/
+#static/
+
+setPath.bat

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+    <a href="{% url 'risk:position_create' %}">Add Position</a>
+
+    {% if fund_positions %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Ticker</th>
+                <th>Currency</th>
+                <th>Quantity</th>
+                <th>Last Price</th>
+                <th>Price Date</th>
+                <th>Industry</th>
+                <th>Sector</th>
+                <th>Asset Class</th>
+
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for position in fund_positions %}
+            <tr>
+                <td>{{position.security.name}}</td>
+                <td>{{position}}</td>
+                <td>{{position.security.currency}}</td>
+                <td>{{position.quantity}}</td>
+                <td>{{position.last_price}}</td>
+                <td>{{position.price_date}}</td>
+                <td>{{position.security.sector}}</td>
+                <td>{{position.security.industry}}</td>
+                <td>{{position.security.asset_class}}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No Positions</p>
+    {% endif %}
+</body>
+</html>

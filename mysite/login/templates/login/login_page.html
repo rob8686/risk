@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <form method="POST" enctype="multipart/form-data">
+
+        {% csrf_token %}
+
+        {{form.username.label}}
+        {{form.username}}
+
+        {{form.password.label}}
+        {{form.password}}
+
+        <input type="submit" value="Submit">
+    </form>
+
+    {% for message in messages %}
+        <p id="messages">{{message}}</p>
+    {% endfor %}
+
+    <a href="{% url 'login:create_account' %}">Create Account</a>
+
+</body>
+</html>

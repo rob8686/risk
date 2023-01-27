@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    {% if user == 'AnonymousUser'%}
+        <span><a href="{% url 'login:login' %}">Login</a></span>
+    {% else %}
+        <span><a href="{% url 'login:logout' %}">Logout ({{user}})</a></span>
+    {% endif %}
+    <a href="create">Add Fund</a>
+    <a href="position_create">Add Position</a>
+    <a href="security_create">Add Security</a>
+
+    {% if fund_list %}
+    <table>
+        <thead>
+            <tr>
+                <th>Fund name</th>
+                <th>Currency</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for fund in fund_list %}
+            <tr>
+                <td>{{fund.name}}</td>
+                <td>{{fund.currency}}</td>
+                 <td><a href="{% url 'risk:get_hist_data' fund.name %}">Run</a></td>
+                <td><a href="{% url 'risk:fund_positions' fund.name %}">Portfolio</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No Funds</p>
+    {% endif %}
+
+</body>
+</html>
