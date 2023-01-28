@@ -25,7 +25,6 @@ node_modules/
 frontend/node_modules/
 
 # JavaScript files
-*.js
 *.map
 
 # React files
