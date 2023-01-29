@@ -33,6 +33,9 @@ class Fund(models.Model):
         default=LiquidityBucket.D365PLUS,
         max_length=200
     )
+    liquidity_status = models.CharField(max_length=200, default='none')
+    performance_status = models.CharField(max_length=200, default='none')   
+
 
     def __str__(self):
         return self.name

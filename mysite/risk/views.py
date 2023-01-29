@@ -68,7 +68,10 @@ class GetRiskData(APIView):
     def get(self, request, fund_id, fund_currency, benchmark ,format='json'):
 
         positions = Position.objects.filter(fund=fund_id).select_related('security') #need this?
-        fund = Fund.objects.filter(id=fund_id)
+        fund = Fund.objects.filter(id=fund_id)[0]
+        print('FUND NAME!!!!!')
+        print(fund.name)
+        print(fund.liquidity_limit)
         benchmark = benchmark
         ticker_currency_quantity = positions.values_list("security__ticker","security__currency","quantity")
         benchmark_currency = {'SPY':'USD'}
@@ -115,13 +118,17 @@ class GetRiskData(APIView):
             
         risk_dict = {}
         performance = Performance(fx_converted_df, yf_dict, benchmark)
+        performance_data = performance.get_performance()
+        fund.performance_status = performance_data['performance']['pivots']['performance']['status']
         data.drop(columns=[benchmark],inplace=True, level=1)
-        liquidity2 = Liquidity(data,yf_dict)
-        liquidity2.get_liquidity()
+        liquidity2 = Liquidity(data,yf_dict, fund.liquidity_limit)
+        liquidity_data = liquidity2.get_liquidity()
+        fund.liquidity_status = liquidity_data['status']
+        fund.save()
         #client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
         new_db = client.test_db
         new_collection = new_db.test_collection
-        result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity2.get_liquidity(), 'performance': performance.get_performance()},upsert=True)
+        result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data},upsert=True)
         return Response(performance.get_performance())
 
 class GetLiquidity(APIView):

@@ -66,29 +66,38 @@ class GetFx:
         return fx_dict['Time Series FX (Daily)'][date]['4. close']
 
 class Liquidity:
-    def __init__(self, yf_data, positions):
+    def __init__(self, yf_data, positions, liq_limit):
         self.positions = positions
         self.average_volumne = yf_data['Volume'].reset_index().mean().to_dict()
+        self.liq_limit = liq_limit
 
     def get_liquidity(self):
         
-
-        liquidity_result_dict = {}
+        liquidity_result_dict, liquidity_days_dict = {}, {}
         liquidity_result_list, cumulative_list = [], []
 
         for perc_adv in [['100%',1],['50%',.5],['30%',.3]]:
-           #liquidity_result_dict[perc_adv[0]] = self.calc_liq_stats2(perc_adv[1]) 
-            result = self.calc_liq_stats2(perc_adv[1])
-            #liquidity_result_dict['cumulative'] = self.calc_cumulative(result)
-            #cumulative_list.append(self.calc_cumulative(result))
-            result['type'] = perc_adv[0]
-            #print(self.calc_cumulative(result))
-            liquidity_result_list.append(result)
+            result = self.calc_liq_stats(perc_adv[1])
+            result[0]['type'] = perc_adv[0]
+            liquidity_days_dict[perc_adv[0]] = result[1]
+            liquidity_result_list.append(result[0])
 
 
         liquidity_result_dict['cumulative'] = self.calc_cumulative(liquidity_result_list)
         liquidity_result_dict['result'] = liquidity_result_list
+        liquidity_result_dict['days'] = liquidity_days_dict
+        liquidity_result_dict['status'] = self.calc_status(liquidity_days_dict)
         return liquidity_result_dict
+    
+    def calc_status(self, liquidity_days_dict):
+        if self.liq_limit == '365+':
+            return 'pass'
+        elif liquidity_days_dict['100%'] > int(self.liq_limit):
+             return 'fail'
+        elif (liquidity_days_dict['50%'] > int(self.liq_limit)) or (liquidity_days_dict['30%'] > int(self.liq_limit)):
+            return 'warning'
+        else:
+            return 'pass' 
 
     def calc_cumulative(self, data):
         cumulative_list, cumulative_total = [], 0
@@ -105,11 +114,12 @@ class Liquidity:
 
         return cumulative_list
 
-    def calc_liq_stats2(self,perc_adv):
+    def calc_liq_stats(self,perc_adv):
 
         result_dict = {}
         result_list = []
         fund_dict = {}
+        max_days_to_liquidate = 0
 
         for ticker in self.average_volumne:
 
@@ -118,11 +128,13 @@ class Liquidity:
             perc_aum = self.positions[ticker][1]
             quantity_disposed_per_day = math.floor(average_vol * .1)
             days_to_liquidate = math.ceil(quantity / quantity_disposed_per_day)
+            if days_to_liquidate > max_days_to_liquidate:
+                max_days_to_liquidate = days_to_liquidate
             aum_disposed_per_day = perc_aum / days_to_liquidate
             qunatity_final_day = quantity % quantity_disposed_per_day
             aum_final_day = perc_aum % aum_disposed_per_day
 
-            result = self.calc_liquidity_buckets2(
+            result = self.calc_liquidity_buckets(
                 days_to_liquidate,quantity_disposed_per_day,quantity,qunatity_final_day,aum_disposed_per_day, perc_aum, aum_final_day)
             result_dict[ticker] = result 
             result['type'] = ticker
@@ -136,107 +148,11 @@ class Liquidity:
             result_list.append(result)
 
         fund_dict['subRows'] = result_list
-        return fund_dict           
-
-    def calc_liq_stats(self,perc_adv):
-
-        result_dict = {}
-
-        for ticker in self.average_volumne:
-
-            average_vol = self.average_volumne[ticker] * perc_adv
-            quantity = self.positions[ticker][0]
-            perc_aum = self.positions[ticker][1]
-            quantity_disposed_per_day = math.floor(average_vol * .1)
-            days_to_liquidate = math.ceil(quantity / quantity_disposed_per_day)
-            aum_disposed_per_day = perc_aum / days_to_liquidate
-            qunatity_final_day = quantity % quantity_disposed_per_day
-            aum_final_day = perc_aum % aum_disposed_per_day
-            result_list = []
-
-            result = self.calc_liquidity_buckets2(
-                days_to_liquidate,quantity_disposed_per_day,quantity,qunatity_final_day,aum_disposed_per_day, perc_aum, aum_final_day)
-            result_dict[ticker] = result 
-            result['type'] = ticker
-
-
-        
-        for fund in result:
-            print(fund)
-            print(result['type'])
-            print()
-
-        fund_dict = {}
-
-        for fund in result_dict:
-            for bucket in ['1','7','30','90','180','365','365+']:
-                try:
-                    #fund_dict[bucket] = {'perc_aum': fund_dict[bucket]['perc_aum'] + result_dict[fund][bucket]['perc_aum']}
-                    #print(fund_dict[bucket]['perc_aum'])
-                    print(result_dict[fund][bucket]['perc_aum'])
-                    fund_dict[bucket] = fund_dict[bucket]['perc_aum'] + result_dict[fund][bucket]['perc_aum'] 
-                except KeyError:                
-                    #fund_dict[bucket] = {'perc_aum': 0}
-                    fund_dict[bucket] = 0
-
-        #result_dict['Fund'] = fund_dict
-        fund_dict['subRows'] = [{'bucket': key1, **value1} for key1, value1 in result_dict.items()]
-        return fund_dict
+        #fund_dict['days_to_liquidate'] = days_to_liquidate
+        print([fund_dict,days_to_liquidate])
+        return [fund_dict,max_days_to_liquidate]           
 
     def calc_liquidity_buckets(self,days_to_liquidate,quantity_disposed_per_day, quantity, qunatity_final_day,aum_disposed_per_day, perc_aum, aum_final_day):
-
-        #bucket_dict = {
-        #    '1':{'quantity':0,'perc_aum':0},'7':{'quantity':0,'perc_aum':0},
-        #    '30':{'quantity':0,'perc_aum':0}, '90':{'quantity':0,'perc_aum':0},
-        #    '180':{'quantity':0,'perc_aum':0},'365':{'quantity':0,'perc_aum':0},
-        #    '365+':{'quantity':0,'perc_aum':0}}
-
-
-        bucket_dict = {
-            '1':{'perc_aum':0},'7':{'perc_aum':0},
-            '30':{'perc_aum':0}, '90':{'perc_aum':0},
-            '180':{'perc_aum':0},'365':{'perc_aum':0},
-            '365+':{'perc_aum':0}}
-
-
-        #if quantity < quantity_disposed_per_day:
-            #bucket_dict['1']['quantity'], bucket_dict['1']['perc_aum'] = quantity, perc_aum
-            #return bucket_dict
-
-
-        if quantity < quantity_disposed_per_day:
-            #bucket_dict['1']['quantity'], bucket_dict['1']['perc_aum'] = quantity, perc_aum
-            bucket_dict['1']['perc_aum'] = perc_aum
-            return bucket_dict
-
-        for day in range(1,days_to_liquidate+1):
-
-            if day < days_to_liquidate:
-                amount_to_liquidate = quantity_disposed_per_day
-                perc_amount_to_liquidate = aum_disposed_per_day
-            else:
-                amount_to_liquidate = qunatity_final_day
-                perc_amount_to_liquidate = aum_final_day
-
-            if day > 365:
-                #bucket_dict['365+']['quantity'], self.fund_level_bucket_dict['365+']['quantity'] = bucket_dict['365+']['quantity'] + amount_to_liquidate
-                bucket_dict['365+']['perc_aum'] = bucket_dict['365+']['perc_aum'] + perc_amount_to_liquidate
-            else:
-                for bucket in ['1','7','30','90','180','365']:
-                    #bucket_dict[bucket]['bucket'] = bucket
-                    if day <= int(bucket):
-                        #bucket_dict[bucket]['quantity'] = bucket_dict[bucket]['quantity'] + amount_to_liquidate
-                        bucket_dict[bucket]['perc_aum'] = bucket_dict[bucket]['perc_aum'] + perc_amount_to_liquidate
-                        break 
-        
-        output_list = [{'bucket': key1, **value1} for key1, value1 in bucket_dict.items()]
-        print('OUTPUT LIST!!!!!!!!!!!!!!!!')
-        print(output_list)
-
-        print(bucket_dict.values())
-        return bucket_dict
-
-    def calc_liquidity_buckets2(self,days_to_liquidate,quantity_disposed_per_day, quantity, qunatity_final_day,aum_disposed_per_day, perc_aum, aum_final_day):
 
         bucket_dict = {
             '1':0,'7':0, '30':0, '90':0,
@@ -264,68 +180,6 @@ class Liquidity:
         
         return bucket_dict
      
-
-
-class RiskAnalytics:
-    def __init__(self, yf_data, positions):
-        self.positions = positions
-        self.average_volumne = yf_data['Volume'].reset_index().mean().to_dict()
-        self.average_volume_dict = self.adv()
-
-
-    def adv(self):
-
-        adv_dict = {}
-
-        for ticker in self.average_volumne:
-            adv_dict[ticker] = self.average_volumne[ticker]   
-
-        return adv_dict 
-        
-
-    def calc_liquidity(self):
-        
-        liquidity_dict = {}    
-
-        for ticker in self.positions:
-            quantity = float(self.positions[ticker][0])
-            adv = float(self.average_volume_dict[ticker])            
-            liquidity_dict[ticker] = self.calc_liquidity_bucket(quantity,adv) 
-
-        return liquidity_dict
-
-
-    def calc_liquidity_bucket(self, quantity, adv):
-        # calcualtes the number of days to liquidate position at 10% of ADV per day 
-        max_liquid_per_day = adv * .1
-        days_to_liquidate = math.ceil(quantity / max_liquid_per_day)
-        amount_final_day = quantity % max_liquid_per_day 
-
-        bucket_dict = {'1':0,'7':0,'30':0,'90':0,'180':0,'365':0,'365+':0}
-
-        # create list of lists with day and amount elements
-        liquidity_days_list = [[day,max_liquid_per_day] if day < days_to_liquidate 
-                else [day,amount_final_day] 
-                for day in range(1,days_to_liquidate +1)]
-
-        for day in liquidity_days_list:
-            if day[0] ==1:
-                bucket_dict['1'] = bucket_dict['1'] + day[1] 
-            elif day[0] <= 7:
-                bucket_dict['7']= bucket_dict['7'] + day[1]
-            elif day[0] <= 30:
-                bucket_dict['30']= bucket_dict['30'] + day[1]
-            elif day[0] <= 90:
-                bucket_dict['90']= bucket_dict['90'] + day[1]
-            elif day[0] <= 180:
-                bucket_dict['180']= bucket_dict['180'] + day[1]
-            elif day[0] <= 365:
-                bucket_dict['365']= bucket_dict['365'] + day[1]
-            else:
-                bucket_dict['365+']= day[1]
-
-        return bucket_dict
-
 class Performance:
     def __init__(self, yf_data, positions, benchmark):
         self.positions = positions
@@ -337,26 +191,41 @@ class Performance:
     def get_performance(self):
 
         performance_dict = {'performance':{}}
-
         weighted_returns = self.calc_weighted_returns()
         historical_data = weighted_returns[['fund_history','benchamrk_history']].reset_index().to_dict('records')
         fund_std = weighted_returns['sum'].std() * math.sqrt(260)
-    
-        benchmark_df = self.yf_data[self.benchmark]
-        #performance_dict['performance']['historical_data']['benchmark_history'] = ((benchmark_df / benchmark_df.iloc[0]) * 100).to_dict()
         benchmark_std = self.benchmark_return.std() * math.sqrt(260)
         
         pivots = self.calc_period_return()
 
         performance_dict['performance']['fund_history'] = historical_data 
         performance_dict['performance']['pivots'] = pivots
+        
         return_dict = performance_dict['performance']['pivots']['performance'] 
         return_dict['fund']['std'] = fund_std
         return_dict['benchmark']['std'] = benchmark_std
         return_dict['fund']['sharpe'] = return_dict['fund']['return'] / fund_std
         return_dict['benchmark']['sharpe'] = return_dict['benchmark']['return'] / benchmark_std
+        return_dict['status'] = self.calc_status(return_dict)
 
         return performance_dict
+
+    def calc_status(self, return_dict):
+        if return_dict['fund']['return'] > 0:
+            if return_dict['fund']['sharpe'] > return_dict['benchmark']['sharpe']:
+                return 'pass'
+            elif (return_dict['fund']['sharpe'] / return_dict['benchmark']['sharpe']) > .9:
+                return 'warning'
+            else:
+                return 'fail'
+        else:
+            if return_dict['fund']['return'] > return_dict['benchmark']['return']:
+                return 'pass'
+            elif (return_dict['fund']['return'] / return_dict['benchmark']['return']) > .9:
+                return 'warning'
+            else:
+                return 'fail'
+    
 
     def calc_weighted_returns(self):
 
@@ -398,76 +267,3 @@ class Performance:
                 }
             }
         return pivot_dict
-
-def get_yf_data(tickers):
-    data = yf.download(  # or pdr.get_data_yahoo(...
-        # tickers list or string as well
-        tickers=tickers,
-
-        # use "period" instead of start/end
-        # valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-        # (optional, default is '1mo')
-        period="ytd",
-
-        # fetch data by interval (including intraday if period < 60 days)
-        # valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-        # (optional, default is '1d')
-        interval="1d",
-
-        # group by ticker (to access via data['SPY'])
-        # (optional, default is 'column')
-        group_by='column',
-
-        # adjust all OHLC automatically
-        # (optional, default is False)
-        auto_adjust=True,
-
-        # download pre/post regular market hours data
-        # (optional, default is False)
-        prepost=False,
-
-        # use threads for mass downloading? (True/False/Integer)
-        # (optional, default is True)
-        threads=True,
-
-        # proxy URL scheme use use when downloading?
-        # (optional, default is None)
-        proxy=None
-
-    )
-    return data
-
-def calc_liquidity(quantity,adv):
-    # calcualtes the number of days to liquidate position at 10% of ADV per day 
-    max_liquid_per_day = adv * .1
-    days_to_liquidate = math.ceil(quantity / max_liquid_per_day)
-    amount_final_day = quantity % max_liquid_per_day 
-
-    bucket_dict = {'1':0,'7':0,'30':0,'90':0,'180':0,'365':0,'365+':0}
-
-    # create list of lists with day and amount elements
-    liquidity_days_list = [[day,max_liquid_per_day] if day < days_to_liquidate 
-               else [day,amount_final_day] 
-               for day in range(1,days_to_liquidate +1)]
-
-    for day in liquidity_days_list:
-        if day[0] ==1:
-            bucket_dict['1'] = bucket_dict['1'] + day[1] 
-        elif day[0] <= 7:
-            bucket_dict['7']= bucket_dict['7'] + day[1]
-        elif day[0] <= 30:
-            bucket_dict['30']= bucket_dict['30'] + day[1]
-        elif day[0] <= 90:
-            bucket_dict['90']= bucket_dict['90'] + day[1]
-        elif day[0] <= 180:
-            bucket_dict['180']= bucket_dict['180'] + day[1]
-        elif day[0] <= 365:
-            bucket_dict['365']= bucket_dict['365'] + day[1]
-        else:
-            bucket_dict['365+']= day[1]
-
-    return bucket_dict
-
-def calc_performance(yf_df,):
-    #for tickier  
-    return True

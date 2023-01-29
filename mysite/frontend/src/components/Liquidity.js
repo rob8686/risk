@@ -5,13 +5,10 @@ import RiskLineChart from './RiskLineChart.js';
 import { AiOutlineArrowRight, AiOutlineArrowDown } from 'react-icons/ai'
 import { Line } from 'recharts';
 
-function Liquidity2() {
+function Liquidity() {
     let url = new URL(window.location.href)
     const [data, setData] = useState([])
     const [fundNum, setFundNum] = useState([url.searchParams.get("fund")])
-
-    let rowList=[];
-    let headerList=[<th>Ticker</th>,,<th>1</th>,<th>7</th>,<th>30</th>,<th>90</th>,<th>180</th>,<th>365</th>,<th>365+</th>];
 
     useEffect(() => {
         getData()
@@ -20,9 +17,6 @@ function Liquidity2() {
     const getData = async () => {
         const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/liquidity/${fundNum}`)    //+fundNum)
         setData(riskData)
-        console.log('RISK DATA')
-        console.log(riskData)
-        console.log(riskData['result'])
       }  
       
       const fetchData = async (url, requestOptions = '') => {
@@ -30,10 +24,6 @@ function Liquidity2() {
         const data = await response.json();
         return data; 
       }
-
-      console.log('DATAAAAAAAAAAAAAAAAAA')
-      console.log(data)
-      console.log(data.length)
 
     const columns = [
         {
@@ -103,9 +93,6 @@ function Liquidity2() {
         <Line type="monotone" dataKey="50" stroke="#82ca9d" />
     ]
 
-    console.log('LINESSSSSSSSSSSSSS')
-    console.log(lines)
-
     return (
       <div>
           <RiskLineChart data={data['cumulative']} lines={lines} dataKey={'name'}/>
@@ -115,4 +102,4 @@ function Liquidity2() {
     
 }
 
-export default Liquidity2
+export default Liquidity
