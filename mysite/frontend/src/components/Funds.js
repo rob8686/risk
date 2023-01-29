@@ -10,8 +10,6 @@ import React from 'react';
 const Funds = (props) => {
   const [data, setData] = useState([props.data])
   
-  const rowList=[];
-  const headerList=[<th>ID</th>,<th>Fund Name</th>,<th>Currency</th>,<th>AUM</th>,<th>Date</th>,<th>Portfolio</th>];
   
   const refresh = async (fundId, fundCurrency,fundBenchmark,requestOptions = '') => {
     const response = await props.fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
@@ -24,20 +22,6 @@ const Funds = (props) => {
     refresh(fundId, fundCurrency,fund_benchmark)
 }
 
-  props.data.forEach((obj,index)=>{
-    rowList.push(
-    <tr key={index}>
-      <td>{obj.id}</td>
-      <td>{obj.name}</td>
-      <td>{obj.currency}</td>
-      <td>{obj.aum}</td>
-      <td>{obj.last_date}</td>
-      <td><Link to={`/positions/?fund=${obj.id}`}>Position</Link></td>
-      <td><Button type="button" className="btn btn-primarys" onClick={(e)=> handleClick(e,obj.id,obj.currency)}>Run</Button></td>
-      <td><Link to={`/liquidity/?fund=${obj.id}`}>Liquidity</Link></td>
-      <td><Link to={`/performance/?fund=${obj.id}`}>Performance</Link></td>
-    </tr>)
-  })
 
   const columns = [
     {Header: 'Id', accessor: 'id'},
@@ -84,16 +68,9 @@ const Funds = (props) => {
 
   return (
     <div>
+        <input/>
         <AddFund getFunds={props.getFunds}/>
         <RiskTable style='responsive striped bordered hover' data={props.data} columns={columns}/>
-        <Table striped bordered hover>
-          <tr>
-            {headerList}
-          </tr>
-          <tbody>
-            {rowList}  
-          </tbody>
-        </Table>
     </div>
   )
 }
