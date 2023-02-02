@@ -7,7 +7,7 @@ const RiskLineChart = (props) => {
     
     return (//aspect={1.6}
 
-
+      <ResponsiveContainer width="100%" height="100%" aspect={1.6}>
         <LineChart
           width={900}
           height={400}
@@ -28,7 +28,7 @@ const RiskLineChart = (props) => {
             return line
           })}
         </LineChart>
-
+      </ResponsiveContainer>
   )
 }
 

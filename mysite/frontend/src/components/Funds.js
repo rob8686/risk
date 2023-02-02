@@ -5,6 +5,7 @@ import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect} from 're
 import Button from 'react-bootstrap/Button'
 import Table from 'react-bootstrap/Table'
 import RiskTable from './RiskTable.js';
+import RiskButton from './RiskButton.js';
 import React from 'react';
 
 const Funds = (props) => {
@@ -31,8 +32,7 @@ const Funds = (props) => {
     {Header: 'Date', accessor: 'last_date',},
     {Header: 'liquidity_limit', accessor: 'liquidity_limit',},
     {Header: 'Benchmark', accessor: 'benchmark',},
-    {Header: 'Portfolio',
-
+    {Header: 'Portfolio', accessor: row => 'Portfolio',
     Cell: ({ cell }) => (
       <Link to={`/positions/?fund=${cell.row.values.id}`}>
         <Button value='portfolio'>
@@ -40,26 +40,22 @@ const Funds = (props) => {
         </Button>
       </Link>
     )}, 
-    {Header: 'Run Risk', 
+    {Header: 'Run Risk', accessor: row => 'Run',
     Cell: ({ cell }) => (
       <Button value='Run' onClick={(e) => handleClick(e,cell.row.values.id,cell.row.values.currency,cell.row.values.benchmark)}>
         Run
       </Button>
     )},
-    {Header: 'Liquidity', 
+    {Header: 'Liquidity', accessor: 'liquidity_status',
     Cell: ({ cell }) => (
-      <Link to={`/liquidity/?fund=${cell.row.values.id}`}>
-        <Button value='Liquidity'>
-          Liquidity
-        </Button>
+      <Link to={`/liquidity/${cell.row.values.id}`}>
+        <RiskButton status={cell.row.values.liquidity_status}/>
       </Link>
     )},
-    {Header: 'Performance', 
+    {Header: 'Performance', accessor: 'performance_status',
     Cell: ({ cell }) => (
-      <Link to={`/performance/?fund=${cell.row.values.id}`}>  
-        <Button value='performance'>
-          Performance
-        </Button>
+      <Link to={`/performance/${cell.row.values.id}`}>
+        <RiskButton status={cell.row.values.performance_status}/>
       </Link>
     )},
   ]

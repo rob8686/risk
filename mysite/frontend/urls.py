@@ -3,7 +3,7 @@ from .views import index
 
 urlpatterns = [
     path('', index),
-    path('join', index),
-    path('create', index),
-    path('join/1', index)
+    path('positions/<int:fund_id>', index),
+    path('liquidity/<int:fund_id>', index),
+    path('performance/<int:fund_id>', index)
 ]

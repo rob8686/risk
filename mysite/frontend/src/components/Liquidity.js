@@ -6,9 +6,8 @@ import { AiOutlineArrowRight, AiOutlineArrowDown } from 'react-icons/ai'
 import { Line } from 'recharts';
 
 function Liquidity() {
-    let url = new URL(window.location.href)
+    const fundNum = window.location.href.split("/").pop()
     const [data, setData] = useState([])
-    const [fundNum, setFundNum] = useState([url.searchParams.get("fund")])
 
     useEffect(() => {
         getData()

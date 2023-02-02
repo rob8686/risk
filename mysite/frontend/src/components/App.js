@@ -55,7 +55,7 @@ const App = () => {
   return (
     <div>
       <Router>
-
+        <TopNavBar/>
         <h1>Hello {name}, From Reacttt</h1>
         <h1>ASDFGH</h1>
         
@@ -64,8 +64,8 @@ const App = () => {
             <Route path="/" element={<Funds data={funds} getFunds={getFunds} fetchData={fetchData}/>}/>
             <Route path="/create_fund" element={<AddFund getFund={getFunds}/>}/>
             <Route path="/positions" element={<Positions/>}/>
-            <Route path="/liquidity" element={<Liquidity/>}/>
-            <Route path="/performance" element={<Performance/>}/>
+            <Route path="/liquidity/:id" element={<Liquidity/>}/>
+            <Route path="/performance/:id" element={<Performance/>}/>
           </Routes>
       
 

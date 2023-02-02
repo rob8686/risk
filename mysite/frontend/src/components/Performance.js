@@ -9,9 +9,8 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 
 const Performance = () => {
-    let url = new URL(window.location.href)
+    const fundNum = window.location.href.split("/").pop()
     const [data, setData] = useState([])
-    const [fundNum, setFundNum] = useState([url.searchParams.get("fund")])
 
     useEffect(() => {
         getData()

@@ -15,6 +15,7 @@ const RiskTable = (props) => {
       
         return (
           <input
+            style={{ width: 'auto' }}
             value={filterValue || ''}
             onChange={e => {
               setFilter(e.target.value || undefined) // Set undefined to remove the filter entirely
