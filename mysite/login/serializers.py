@@ -1,0 +1,10 @@
+from django.contrib.auth.models import User
+from rest_framework import serializers
+from risk.models import Fund, Position, Security
+
+class UserSerializer(serializers.ModelSerializer):
+    funds = serializers.PrimaryKeyRelatedField(many=True, queryset=Fund.objects.all())
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'snippets']

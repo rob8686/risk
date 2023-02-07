@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 //import Table from './Table.js';
 import AddFund from './AddFund.js';
 import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect} from 'react-router-dom'
@@ -6,6 +6,7 @@ import Button from 'react-bootstrap/Button'
 import Table from 'react-bootstrap/Table'
 import RiskTable from './RiskTable.js';
 import RiskButton from './RiskButton.js';
+import AuthContext from './AuthContext.js';
 import React from 'react';
 
 const Funds = (props) => {
@@ -26,7 +27,13 @@ const Funds = (props) => {
 
   const columns = [
     {Header: 'Id', accessor: 'id'},
-    {Header: 'Name', accessor: 'name',},
+    {Header: 'Name', accessor: 'name',
+    Cell: ({ value }) => (
+      <div style={{ wordBreak: 'break-word' }}>
+        {value}
+      </div>
+    )
+    },
     {Header: 'Currency', accessor: 'currency',},
     {Header: 'AUM', accessor: 'aum',},
     {Header: 'Date', accessor: 'last_date',},
@@ -61,9 +68,11 @@ const Funds = (props) => {
   ]
 
   if (!data.length) return <div>Loading...</div>
+  let {name} = useContext(AuthContext)
 
   return (
     <div>
+        <p>{name}</p>
         <input/>
         <AddFund getFunds={props.getFunds}/>
         <RiskTable style='responsive striped bordered hover' data={props.data} columns={columns}/>

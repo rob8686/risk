@@ -1,5 +1,12 @@
 from django.contrib import admin
 from django.urls import include, path
+import rest_framework_simplejwt
+
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
 
 
 """mysite URL Configuration
