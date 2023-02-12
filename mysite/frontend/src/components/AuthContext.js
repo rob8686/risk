@@ -1,13 +1,15 @@
 import { createContext, useState, useEffect } from "react";
+import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext()
 
 export default AuthContext;
 
 export const AuthProvider = ({children}) => {
-    //http://127.0.0.1:8000/login/api/token/
-    const [authTokens, setAuthTokens] = useState(null)
-    const [user, setUser] = useState(null)
+    localStorage.getItem('authTokens')
+    const navigate = useNavigate();
+    const [authTokens, setAuthTokens] = useState(()=> localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null)
+    const [user, setUser] = useState(()=> localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null)
 
     const loginUser = async(e) =>{
         e.preventDefault();
@@ -18,14 +20,34 @@ export const AuthProvider = ({children}) => {
             headers:{
                 'Content-Type':'application/json'
             },
-            body:JSON.stringify({'username':e.target.username,'password':e.target.password})
+            body:JSON.stringify({'username':e.target.username.value,'password':e.target.password.value})
         })
         const data = await response.json()
         console.log(data)
+        if(response.status ===200){
+            setAuthTokens(data)
+            setUser(e.target.username.value)
+            localStorage.setItem('authTokens', JSON.stringify(data))
+            localStorage.setItem('user', user)
+            navigate('/');
+        }else{
+            alert(response.status)
+        }
+    }
+
+    let logoutUser = () => {
+        setAuthTokens(null)
+        setUser(null)
+        localStorage.removeItem('authTokens')
+        localStorage.removeItem('user')
+        navigate('/');
     }
 
     const contextData = {
-        loginUser:loginUser
+        user:user,
+        authTokens:authTokens,
+        loginUser:loginUser,
+        logoutUser: logoutUser
     }
 
     return(
