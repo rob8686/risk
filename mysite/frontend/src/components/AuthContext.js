@@ -10,11 +10,10 @@ export const AuthProvider = ({children}) => {
     const navigate = useNavigate();
     const [authTokens, setAuthTokens] = useState(()=> localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null)
     const [user, setUser] = useState(()=> localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null)
+    const [loading, setLoading] = useState(true)
 
     const loginUser = async(e) =>{
         e.preventDefault();
-        //console.log('Form SUbmitted');
-        //alert("Hello! I am an alert box!");
         const response = await fetch('http://127.0.0.1:8000/login/api/token/',{
             method:'POST',
             headers:{
@@ -43,6 +42,31 @@ export const AuthProvider = ({children}) => {
         navigate('/');
     }
 
+    let updateToken = async ()=> {
+
+        let response = await fetch('http://127.0.0.1:8000/login/api/token/refresh/', {
+            method:'POST',
+            headers:{
+                'Content-Type':'application/json'
+            },
+            body:JSON.stringify({'refresh':authTokens?.refresh})
+        })
+
+        let data = await response.json()
+        
+        if (response.status === 200){
+            setAuthTokens(data)
+            //setUser(jwt_decode(data.access))
+            localStorage.setItem('authTokens', JSON.stringify(data))
+        }else{
+            logoutUser()
+        }
+
+        if(loading){
+            setLoading(false)
+        }
+    }
+
     const contextData = {
         user:user,
         authTokens:authTokens,
@@ -50,9 +74,26 @@ export const AuthProvider = ({children}) => {
         logoutUser: logoutUser
     }
 
+    useEffect(()=> {
+
+        if(loading){
+            updateToken()
+        }
+
+        let fourMinutes = 2000//1000 * 60 * 4
+
+        let interval =  setInterval(()=> {
+            if(authTokens){
+                updateToken()
+            }
+        }, fourMinutes)
+        return ()=> clearInterval(interval)
+
+    }, [authTokens, loading])
+
     return(
-        <AuthContext.Provider value={contextData}>
-            {children}    
+        <AuthContext.Provider value={contextData} >
+            {loading ? null : children}
         </AuthContext.Provider>
     )
 }
