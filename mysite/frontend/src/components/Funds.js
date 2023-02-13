@@ -6,7 +6,6 @@ import Button from 'react-bootstrap/Button'
 import Table from 'react-bootstrap/Table'
 import RiskTable from './RiskTable.js';
 import RiskButton from './RiskButton.js';
-import AuthContext from './AuthContext.js';
 import React from 'react';
 
 const Funds = (props) => {
@@ -68,11 +67,9 @@ const Funds = (props) => {
   ]
 
   if (!data.length) return <div>Loading...</div>
-  let {name} = useContext(AuthContext)
 
   return (
     <div>
-        <p>{name}</p>
         <input/>
         <AddFund getFunds={props.getFunds}/>
         <RiskTable style='responsive striped bordered hover' data={props.data} columns={columns}/>
