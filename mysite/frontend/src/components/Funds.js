@@ -7,10 +7,11 @@ import Table from 'react-bootstrap/Table'
 import RiskTable from './RiskTable.js';
 import RiskButton from './RiskButton.js';
 import React from 'react';
+import AuthContext from './AuthContext.js'
 
 const Funds = (props) => {
   const [data, setData] = useState([props.data])
-  
+  const {authTokens, logoutUser} = useContext(AuthContext)
   
   const refresh = async (fundId, fundCurrency,fundBenchmark,requestOptions = '') => {
     const response = await props.fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
@@ -18,9 +19,25 @@ const Funds = (props) => {
   }  
 
   const handleClick = (event, fundId, fundCurrency,fund_benchmark) => {
-    console.log('BENCHMARK?????')
-    console.log(fund_benchmark)
     refresh(fundId, fundCurrency,fund_benchmark)
+}
+
+const getFunds = async() =>{
+  let response = await fetch('http://127.0.0.1:8000/api/fund/', {
+      method:'GET',
+      headers:{
+          'Content-Type':'application/json',
+          'Authorization':'Bearer ' + String(authTokens.access)
+      }
+  })
+  let data = await response.json()
+
+  if(response.status === 200){
+      setNotes(data)
+  }else if(response.statusText === 'Unauthorized'){
+      logoutUser()
+  }
+  
 }
 
 

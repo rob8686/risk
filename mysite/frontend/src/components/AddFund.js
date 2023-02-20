@@ -1,44 +1,55 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import React from 'react';
+import AuthContext from './AuthContext.js'
+import { useNavigate } from 'react-router-dom';
 
 const AddFund = (props) => {
+  const navigate = useNavigate();
   const [name, setName] = useState([])
   const [currency, setCurrency] = useState([])
   const [aum, setAum] = useState([])
+  const {authTokens, logoutUser} = useContext(AuthContext)
 
-  const requestOptions ={
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      name: name,
-      currency: currency,
-      aum: aum,
+  const addFund = async() =>{
+    let response = await fetch('http://127.0.0.1:8000/api/fund/', {
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'Authorization':'Bearer ' + String(authTokens.access)
+        },
+        body: JSON.stringify({
+          name: name,
+          currency: currency,
+          aum: aum,
+        })
     })
+    let data = await response.json()
+  
+    if(response.status === 201){
+        props.getFunds()
+        alert('Fund Created')
+    }else if(response.statusText === 'Unauthorized'){
+        alert(data.code)
+    }
+    
   }
 
   const handleChange = (event) => {
     const value = event.target.value;
-    //event.target.name === "fund" ? setName(value) : setCurrency(value);
     event.target.name === "fund" ? setName(value) : 
     event.target.name === "currency" ? setCurrency(value) : setAum(value); 
   }
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    addFund(requestOptions)
+    if (authTokens){
+      addFund()  
+    }
+    else{
+      navigate('/login');
+    }
   }
 
-  const addFund = async (requestOptions = '') => {
-    const FundsFromServer = await fetchData('http://127.0.0.1:8000/api/fund/', requestOptions)
-    props.getFunds()
-  }  
-  
-  const fetchData = async (url, requestOptions = '') => {
-    const response = (requestOptions === '') ?  await fetch(url) : await fetch(url,requestOptions);
-    const data = await response.json();
-    return data; 
-  }
-  
   return (
     <form onSubmit={handleSubmit}>
         <div>
