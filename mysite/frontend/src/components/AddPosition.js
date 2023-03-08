@@ -1,12 +1,42 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
+import AuthContext from './AuthContext.js'
+import { useNavigate } from 'react-router-dom';
 
 const AddPosition = (props) => {
+  const navigate = useNavigate();
   const [security, setSecurity] = useState([])
   const [quantity, setQuantity] = useState([])
   const [requestFailed, setRequestFailed] = useState([])
   const [percentAum, setPercentAum] = useState([])
   //const [fund, setFund] = useState([])
   const [showAddTask, setShowAddTask] = useState(false)
+  const {authTokens, logoutUser} = useContext(AuthContext)
+  
+
+  const addPosition = async() =>{
+    let response = await fetch('http://127.0.0.1:8000/api/position/', {
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'Authorization':'Bearer ' + String(authTokens.access)
+        },
+        body: JSON.stringify({
+          security: security,
+          quantity: quantity,
+          fund: props.fundNum[0],
+          percent_aum: percentAum 
+        })
+    })
+    let data = await response.json()
+  
+    if(response.status === 201){
+        props.getPositions(props.fundNum)
+        alert('Position Created')
+    }else if(response.statusText === 'Unauthorized'){
+        alert(data.code)
+    }
+    
+  }
 
   const requestOptions ={
     method:"POST",
@@ -25,13 +55,23 @@ const AddPosition = (props) => {
     event.target.name === "quantity" ? setQuantity(value): setPercentAum(value);
   }
 
-  const handleSubmit =  async (event) => {
+  const handleSubmit2 =  async (event) => {
     event.preventDefault();
     addPosition(requestOptions);
 
   }
 
-  const addPosition = async (requestOptions = '') => {
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (authTokens){
+      addPosition()  
+    }
+    else{
+      navigate('/login');
+    }
+  }
+
+  const addPosition2 = async (requestOptions = '') => {
     const FundsFromServer = await fetchData('http://127.0.0.1:8000/api/position/', requestOptions)
     props.getPositions(props.fundNum)
   }  

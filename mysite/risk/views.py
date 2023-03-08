@@ -17,6 +17,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 # from django.contrib.auth import login, logout, authenticate
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, BasePermission, SAFE_METHODS
+from rest_framework_simplejwt.authentication import JWTAuthentication
 #client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
 
 class PositionWritePermission(BasePermission):
@@ -29,6 +30,8 @@ class PositionWritePermission(BasePermission):
         print(request.user)
         print('hERE""£$')
         print(request.query_params)
+        for i in request:
+            print(i)
         print('Finallyyyyyyy?')
         if request.method in SAFE_METHODS:
             return True
@@ -40,6 +43,9 @@ class PositionWritePermission(BasePermission):
         print('BLCOKED!!!!!!!')
         print(request)
         print(request.user)
+        user = request.user
+        user_name = user.username
+        print('USERNAME', user_name)
         print(view)
         print(request.data)
 
@@ -62,6 +68,7 @@ class PositionWritePermission(BasePermission):
 class FundViewSet(viewsets.ModelViewSet):
     print(PositionWritePermission)
     permission_classes = [IsAuthenticatedOrReadOnly]
+    authentication_classes = [JWTAuthentication]
     #permission_classes = [PositionWritePermission]
     queryset =Fund.objects.all()
     serializer_class = FundSerializer
