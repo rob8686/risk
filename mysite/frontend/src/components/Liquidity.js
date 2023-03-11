@@ -5,6 +5,7 @@ import RiskLineChart from './RiskLineChart.js';
 import { AiOutlineArrowRight, AiOutlineArrowDown } from 'react-icons/ai'
 import { Line } from 'recharts';
 
+
 function Liquidity() {
     const fundNum = window.location.href.split("/").pop()
     const [data, setData] = useState([])

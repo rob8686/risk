@@ -1,6 +1,6 @@
 import React from 'react';
 import { useState, useEffect, useContext } from 'react'
-import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect} from 'react-router-dom'
+import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect, useLocation} from 'react-router-dom'
 import {Container, Row, Col, Card, Form, Button } from "react-bootstrap";
 import ReactDOM from 'react-dom';
 import { render } from "react-dom";
@@ -21,6 +21,7 @@ import { AiOutlineHome, AiFillHome } from 'react-icons/ai';
 const App = () => {
 
   const [funds, setFunds] = useState([])
+  const location = useLocation();
 
   useEffect(() => {
     getFunds()
@@ -50,7 +51,7 @@ const App = () => {
               <Col id="page-content-wrapper">  
                 <Routes>
                   <Route path="/" element={<Funds data={funds} getFunds={getFunds} fetchData={fetchData}/>}/>
-                  <Route path="/create_fund" element={<CreateFund/>}/>
+                  <Route path="/create_fund" element={<CreateFund getFunds={getFunds} />}/>
                   <Route path="/positions" element={<Positions/>}/>
                   <Route path="/liquidity/:id" element={<Liquidity/>}/>
                   <Route path="/performance/:id" element={<Performance/>}/>

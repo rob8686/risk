@@ -61,7 +61,15 @@ const Sidebar = (props) => {
           icon: <AiOutlineHome/>,
           cName: 'nav-text'
         },
-      ]  
+      ],
+      'LoginSidebarData' : [
+        {
+          title: 'Home',
+          path: '/',
+          icon: <AiOutlineHome/>,
+          cName: 'nav-text'
+        },
+      ]    
     };
 
     const SidebarType = location.pathname === '/' ? 'HomeSidebarData' : 
