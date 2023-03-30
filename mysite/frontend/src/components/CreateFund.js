@@ -3,10 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import AuthContext from './AuthContext.js';
 import { useContext } from 'react';
 
-const onSubmit = (event) => {
-    console.log("Hello World!!!!!!!!!")
-    event.preventDefault();
-}
 
 const CreateFund = () => {
 
@@ -42,7 +38,7 @@ const CreateFund = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (authTokens){
-            createFund()  
+            createFund(e)  
         }
         else{
             navigate('/login');
@@ -54,7 +50,7 @@ const CreateFund = () => {
     <Container fluid>
         <Row className="vh-100">
             <Col md={{ span: 6, offset: 3 }}>    
-                <Form onSubmit={createFund}>
+                <Form onSubmit={handleSubmit}>
                     <Form.Group className="mb-3" controlId="formBasicFundName" >
                         <Form.Label>Fund Name</Form.Label>
                         <Form.Control type="text" name="fundname" placeholder="Fund Name" />

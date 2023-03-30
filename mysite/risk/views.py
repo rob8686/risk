@@ -57,11 +57,11 @@ class PositionWritePermission(BasePermission):
         print('THEREEEEE')
         print(request.query_params.dict())
         print(request.query_params.dict().keys())
-        fund_id = request.data['fund']
-        print('FUND ID: ', fund_id)
-        fund_name =Fund.objects.get(id=fund_id)
-        print(fund_name)
-        print(fund_name.name)
+        #fund_id = request.data['fund']
+        #print('FUND ID: ', fund_id)
+        #fund_name =Fund.objects.get(id=fund_id)
+        #print(fund_name)
+        #print(fund_name.name)
         print()
         return True
 
@@ -79,6 +79,9 @@ class PositionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self,*args, **kwargs):
         fund = self.request.GET.get('fund')
+        print(self.request)
+        print('HELP "" ** (())')
+        print('FUnd',fund)
         if fund:
             return Position.objects.filter(fund=fund)
         return Position.objects.all()

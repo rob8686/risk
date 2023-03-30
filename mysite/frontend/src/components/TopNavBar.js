@@ -10,20 +10,29 @@ const TopNavBar = () => {
 
     const {user, logoutUser} = useContext(AuthContext)
 
+    const navStyle = {
+      backgroundColor: '#3b4054', // set your desired background color here
+      color: 'white'
+    };
+
+    const linkStyle = {
+      textDecoration: 'none',
+      color: 'white',
+    };
+
+    //<Navbar bg="light" variant="light" expand="lg"></Navbar>
+    //<Navbar.Brand href="#home">React-Bootstrap</Navbar.Brand>
+
     return (
-        <Navbar bg="dark" variant="dark" expand="lg">
+        <Navbar style={navStyle} expand="lg">
           <Container>
-            <Navbar.Brand href="#home">React-Bootstrap</Navbar.Brand>
             <Navbar.Toggle aria-controls="basic-navbar-nav" />
             <Navbar.Collapse className="justify-content-end">
               <Navbar.Text>
-                <Link to={'/login'}>
-                  login
-                </Link>
                 {user ? (
                  <p  onClick={logoutUser}>Logout</p>
                 ): (
-                <Link to="/login" >Login</Link>
+                <Link to="/login" stlye={linkStyle}>Login</Link>
                 )}
               </Navbar.Text>
             </Navbar.Collapse>

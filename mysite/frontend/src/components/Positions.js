@@ -1,14 +1,16 @@
+import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect, useLocation} from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import AddPosition from './AddPosition';
 import TableInput from './TableInput';
 import Table from 'react-bootstrap/Table'
 import Button from 'react-bootstrap/Button'
 import RiskTable from './RiskTable.js';
+import CreatePosition from './CreatePosition.js';
 
 const Positions = (props) => {
-    let url = new URL(window.location.href)
+    const location = useLocation(); 
     const [positions, setPositions] = useState([])
-    const [fundNum, setFundNum] = useState([url.searchParams.get("fund")])
+    const [fundNum, setFundNum] = useState([location.pathname.split('/').pop()])
     const rowList=[];
 
     useEffect(() => {
@@ -17,7 +19,15 @@ const Positions = (props) => {
 
     console.log('posiitons',positions)
     const getPositions = async (fundNum) => {
-        const PositionsFromServer = await fetchData('http://127.0.0.1:8000/api/position/?fund='+fundNum)
+        console.log('FUND NUMB')
+        console.log(fundNum)
+        //const url = `http://127.0.0.1:8000/api/position/?fund=${fundNum}`
+        const url = 'http://127.0.0.1:8000/api/position/?fund=' + fundNum
+        console.log(url)
+        const PositionsFromServer = await fetchData(url)//+fundNum)
+        console.log('123456789 HERE ')
+        console.log(fundNum)
+        console.log(PositionsFromServer)
         PositionsFromServer.forEach((elem) =>{
             let securities = elem['securities'];
             delete securities.id;
@@ -83,12 +93,26 @@ const Positions = (props) => {
       {Header: 'Sector', accessor: 'sector',},
       {Header: 'Industry', accessor: 'industry',},
       {Header: 'Price Date', accessor: 'price_date',},
-      {Header: 'Last Price', accessor: 'last_price',},
-      {Header: 'Quantity', accessor: 'quantity',},
-      {Header: 'Mkt Value Local', accessor: 'mkt_value_local',},
+      {Header: 'Last Price', accessor: 'last_price',
+      Cell: ({ value }) =>
+      typeof value === 'number' ? value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : value,
+      },
+      {Header: 'Quantity', accessor: 'quantity',
+      Cell: ({ value }) =>
+      typeof value === 'number' ? value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : value,
+      },
+      {Header: 'Mkt Value Local', accessor: 'mkt_value_local',
+      Cell: ({ value }) =>
+      typeof value === 'number' ? value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : value,
+      },
       {Header: 'FX Rate', accessor: 'fx_rate',},
-      {Header: 'Mkt Value Base', accessor: 'mkt_value_base',},
-      {Header: 'Percent AUM', accessor: 'percent_aum',},
+      {Header: 'Mkt Value Base', accessor: 'mkt_value_base',
+      Cell: ({ value }) =>
+      typeof value === 'number' ? value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : value,
+      },
+      {Header: 'Percent AUM', accessor: 'percent_aum',
+      Cell: ({ value }) => (value * 100).toFixed(2) + '%',
+      },
       {Header: 'Delete',
       Cell: ({ cell }) => (
         <Button value={cell.row.values.id} onClick={(e) => handleClick(e,cell.row.values.id)}>
@@ -98,21 +122,26 @@ const Positions = (props) => {
       },
     ]
 
+  //<Table striped bordered hover size="sm">
+  //  <tr>
+  //    {headerList}
+  //  </tr>
+  //  <tbody>
+  //    {rowList}  
+  //  </tbody>
+  //</Table>  
 
   if (!positions.length) return <div>Loading...</div>  
 
   return (
     <div>
-        <AddPosition getPositions={getPositions} fundNum ={fundNum}/>
-        <Table striped bordered hover size="sm">
-          <tr>
-            {headerList}
-          </tr>
-          <tbody>
-            {rowList}  
-          </tbody>
-        </Table>
-        <RiskTable style='striped bordered hover' data={positions} columns={columns}/>
+        <Routes>
+          <Route path="/create_position" element={<CreatePosition/>}/>
+        </Routes>
+        <CreatePosition getPositions={getPositions}/>
+        <div className='content'>
+          <RiskTable style='responsive striped bordered hover table-sm' data={positions} columns={columns}/>
+        </div>
     </div>
   )
 }

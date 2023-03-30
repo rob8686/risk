@@ -36,7 +36,7 @@ class CreatePositionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Position
-        fields = ('quantity', 'security','fund','percent_aum')
+        fields = ('security','fund','percent_aum')
 
     def create(self, validated_data):
         ticker = validated_data['security']

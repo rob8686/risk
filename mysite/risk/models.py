@@ -46,7 +46,7 @@ class Fund(models.Model):
 
 
 class Position(models.Model):
-    quantity = models.FloatField()
+    quantity = models.FloatField(default=0)
     last_price = models.FloatField()
     price_date = models.DateField()
     percent_aum = models.FloatField(default=0)

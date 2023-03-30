@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react'
 //import Table from './Table.js';
 import AddFund from './AddFund.js';
-import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect} from 'react-router-dom'
+import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect,useLocation} from 'react-router-dom'
 import Button from 'react-bootstrap/Button'
 import Table from 'react-bootstrap/Table'
 import RiskTable from './RiskTable.js';
@@ -10,36 +10,35 @@ import React from 'react';
 import AuthContext from './AuthContext.js'
 
 const Funds = (props) => {
-  const [data, setData] = useState([props.data])
+  //const [data, setData] = useState([props.data])
+  const [funds, setFunds] = useState([])
   const {authTokens, logoutUser} = useContext(AuthContext)
-  
+  const location = useLocation();
+
+  useEffect(() => {
+    getFunds()
+  }, [location]) 
+
   const refresh = async (fundId, fundCurrency,fundBenchmark,requestOptions = '') => {
-    const response = await props.fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
+    //const response = await props.fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
+    const response = await fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
     props.getFunds()
   }  
 
   const handleClick = (event, fundId, fundCurrency,fund_benchmark) => {
     refresh(fundId, fundCurrency,fund_benchmark)
-}
-
-const getFunds = async() =>{
-  let response = await fetch('http://127.0.0.1:8000/api/fund/', {
-      method:'GET',
-      headers:{
-          'Content-Type':'application/json',
-          'Authorization':'Bearer ' + String(authTokens.access)
-      }
-  })
-  let data = await response.json()
-
-  if(response.status === 200){
-      setNotes(data)
-  }else if(response.statusText === 'Unauthorized'){
-      logoutUser()
   }
-  
+
+const getFunds = async () => {
+  const FundsFromServer = await fetchData('http://127.0.0.1:8000/api/fund/')
+  setFunds(FundsFromServer)
 }
 
+const fetchData = async (url, requestOptions = '') => {
+  const response = (requestOptions === '') ?  await fetch(url) : await fetch(url,requestOptions);
+  const data = await response.json();
+  return data; 
+}
 
   const columns = [
     {Header: 'Id', accessor: 'id'},
@@ -57,7 +56,8 @@ const getFunds = async() =>{
     {Header: 'Benchmark', accessor: 'benchmark',},
     {Header: 'Portfolio', accessor: row => 'Portfolio',
     Cell: ({ cell }) => (
-      <Link to={`/positions/?fund=${cell.row.values.id}`}>
+      //<Link to={`/positions/?fund=${cell.row.values.id}`}>
+      <Link to={`/positions/${cell.row.values.id}`}>
         <Button value='portfolio'>
           Portfolio
         </Button>
@@ -83,13 +83,14 @@ const getFunds = async() =>{
     )},
   ]
 
-  if (!data.length) return <div>Loading...</div>
+  //if (!funds.length) return <div>Loading...</div>
+  // <div style={{backgroundColor:'white', margin:'10px', padding:'10px', border: '5px solid blue',}}>
+  // <RiskTable style='responsive striped bordered hover' data={funds} columns={columns}/>
 
   return (
-    <div>
-        <input/>
-        <AddFund getFunds={props.getFunds}/>
-        <RiskTable style='responsive striped bordered hover' data={props.data} columns={columns}/>
+    <div className='content'>
+        <RiskTable style='table responsive hover' data={funds} columns={columns}/>
+
     </div>
   )
 }

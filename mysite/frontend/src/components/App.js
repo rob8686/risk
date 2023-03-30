@@ -13,15 +13,27 @@ import TopNavBar from './TopNavBar.js';
 import Sidebar from './Sidebar';
 import Login from './Login.js';
 import CreateFund from './CreateFund.js';
+import Brand from './brand.js';
 import { AuthProvider} from './AuthContext.js';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../../static/css/sidebar.css'
 import { AiOutlineHome, AiFillHome } from 'react-icons/ai';
+import CreatePosition from './CreatePosition.js';
+import './App.css';
 
 const App = () => {
 
   const [funds, setFunds] = useState([])
-  const location = useLocation();
+  const [pathname, setPathname] = useState([window.location.pathname])
+  console.log('HERE1')
+  //const location = useLocation();
+  console.log('THERE2')
+  const currentURL = window.location.href // returns the absolute URL of a page
+  //const pathname = window.location.pathname //returns the current url minus the domain name
+  console.log(currentURL)
+  console.log(pathname)
+  console.log('Everywhere!!')
+
 
   useEffect(() => {
     getFunds()
@@ -38,25 +50,51 @@ const App = () => {
     return data; 
   }
 
+  const constainerStyle = {
+    //backgroundColor: '#3b4054', // set your desired background color here
+    height: '100vh'
+    // you can also set other styles such as padding, margin, etc. here
+  };
+
+  const divStyle = {
+    //backgroundColor: '#3b4054', // set your desired background color here
+    //boxShadow: '5px 5px 5px',
+    //margin: '120px',
+    //padding: '10px',
+    //border: '5px solid red',
+    // backgroundColor: 'white',
+    // you can also set other styles such as padding, margin, etc. here
+  };
+
   return (
     <div>
-        <Router>
+        <Router>  
         <AuthProvider>
-          <TopNavBar/>
-          <Container fluid>
+          <Container fluid style={constainerStyle}>
             <Row>
-              <Col xs={1}>      
+              <Col style={{ padding: 0 }} xs={1}>      
+                <Brand/>
+              </Col>
+              <Col style={{ paddingLeft: 0, paddingRight: 0}}>      
+                <TopNavBar/>
+              </Col>
+            </Row>
+            <Row>
+              <Col style={{ padding: 0 }} xs={1} lg={.5}>      
                 <Sidebar />
               </Col>
-              <Col id="page-content-wrapper">  
-                <Routes>
-                  <Route path="/" element={<Funds data={funds} getFunds={getFunds} fetchData={fetchData}/>}/>
-                  <Route path="/create_fund" element={<CreateFund getFunds={getFunds} />}/>
-                  <Route path="/positions" element={<Positions/>}/>
-                  <Route path="/liquidity/:id" element={<Liquidity/>}/>
-                  <Route path="/performance/:id" element={<Performance/>}/>
-                  <Route path="/login" element={<Login/>}/>
-                </Routes>
+              <Col id="page-content-wrapper" style={{ paddingTop: 20 }}>
+                <div style={divStyle}>
+                  <Routes>
+                    <Route path="/" element={<Funds data={funds} getFunds={getFunds} fetchData={fetchData}/>}/>
+                    <Route path="/create_fund" element={<CreateFund getFunds={getFunds} />}/>
+                    <Route path="/positions/:id" element={<Positions/>}/>
+                    <Route path="/liquidity/:id" element={<Liquidity/>}/>
+                    <Route path="/performance/:id" element={<Performance/>}/>
+                    <Route path="/login" element={<Login/>}/>
+                    <Route path="/create_position/*" element={<CreatePosition/>}/>
+                  </Routes>
+                </div>  
               </Col>  
             </Row>  
           </Container>
