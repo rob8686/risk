@@ -10,6 +10,7 @@ export const AuthProvider = ({children}) => {
     const navigate = useNavigate();
     const [authTokens, setAuthTokens] = useState(()=> localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null)
     const [user, setUser] = useState(()=> localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null)
+    const [userName, setUserName] = useState([])
     const [loading, setLoading] = useState(true)
 
     const loginUser = async(e) =>{
@@ -26,6 +27,7 @@ export const AuthProvider = ({children}) => {
         if(response.status ===200){
             setAuthTokens(data)
             setUser(e.target.username.value)
+            setUserName(e.target.username.value)
             localStorage.setItem('authTokens', JSON.stringify(data))
             localStorage.setItem('user', user)
             navigate('/');
@@ -37,6 +39,7 @@ export const AuthProvider = ({children}) => {
     let logoutUser = () => {
         setAuthTokens(null)
         setUser(null)
+        setUserName(null)
         localStorage.removeItem('authTokens')
         localStorage.removeItem('user')
         navigate('/');
@@ -69,6 +72,7 @@ export const AuthProvider = ({children}) => {
 
     const contextData = {
         user:user,
+        userName: userName,
         authTokens:authTokens,
         loginUser:loginUser,
         logoutUser: logoutUser

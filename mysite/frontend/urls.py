@@ -8,5 +8,6 @@ urlpatterns = [
     path('performance/<int:fund_id>', index),
     path('login/', index),
     path('create_fund/', index),
-    path('create_position/<int:fund_id>', index)
+    path('create_position/<int:fund_id>', index),
+    path('create_user/', index)
 ]

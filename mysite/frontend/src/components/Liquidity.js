@@ -4,6 +4,7 @@ import ExtandableRiskTable from './ExtandableRiskTable.js';
 import RiskLineChart from './RiskLineChart.js';
 import { AiOutlineArrowRight, AiOutlineArrowDown } from 'react-icons/ai'
 import { Line } from 'recharts';
+import {Container, Row, Col, Card, Form, Button } from "react-bootstrap";
 
 
 function Liquidity() {
@@ -94,10 +95,22 @@ function Liquidity() {
     ]
 
     return (
-      <div>
-          <RiskLineChart data={data['cumulative']} lines={lines} dataKey={'name'}/>
-          <ExtandableRiskTable style='striped bordered hover' data={data['result']} columns={columns}/>
-      </div>
+      <Container>
+        <Row>
+          <Col>
+            <div className='content'>
+              <RiskLineChart data={data['cumulative']} lines={lines} dataKey={'name'}/>
+            </div>
+          </Col>
+        </Row>
+        <Row>
+          <Col>
+            <div className='content'>
+              <ExtandableRiskTable style='striped bordered hover' data={data['result']} columns={columns}/>
+            </div>
+          </Col>
+        </Row>
+      </Container>
     )
     
 }

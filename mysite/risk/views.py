@@ -18,7 +18,7 @@ from bson.objectid import ObjectId
 # from django.contrib.auth import login, logout, authenticate
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, BasePermission, SAFE_METHODS
 from rest_framework_simplejwt.authentication import JWTAuthentication
-#client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
+client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
 
 class PositionWritePermission(BasePermission):
     message = 'Only user who created the fund can add positions'
@@ -180,27 +180,27 @@ class GetRiskData(APIView):
         liquidity_data = liquidity2.get_liquidity()
         fund.liquidity_status = liquidity_data['status']
         fund.save()
-        #client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
-        #new_db = client.test_db
-        #new_collection = new_db.test_collection
-        #result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data},upsert=True)
+        client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
+        new_db = client.test_db
+        new_collection = new_db.test_collection
+        result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data},upsert=True)
         return Response(performance.get_performance())
 
 class GetLiquidity(APIView):
     def get(self, request, fund_id, format='json'):
-        #db = client.test_db
-        #collection = db.test_collection
-        #document = collection.find_one({'_id':fund_id})
-        #return Response(document["liquidity"])
-        return True
+        db = client.test_db
+        collection = db.test_collection
+        document = collection.find_one({'_id':fund_id})
+        return Response(document["liquidity"])
+        #return True
 
 class GetPerformance(APIView):
     def get(self, request, fund_id, format='json'):
-        #db = client.test_db
-        #collection = db.test_collection
-        #document = collection.find_one({'_id':fund_id})
-        #return Response(document["performance"])
-        return True
+        db = client.test_db
+        collection = db.test_collection
+        document = collection.find_one({'_id':fund_id})
+        return Response(document["performance"])
+        #return True
 
 
 

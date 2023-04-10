@@ -50,7 +50,8 @@ const CreateFund = () => {
     <Container fluid>
         <Row className="vh-100">
             <Col md={{ span: 6, offset: 3 }}>    
-                <Form onSubmit={handleSubmit}>
+                <Form onSubmit={handleSubmit} className='content'>
+                    <h3>Create Position</h3>
                     <Form.Group className="mb-3" controlId="formBasicFundName" >
                         <Form.Label>Fund Name</Form.Label>
                         <Form.Control type="text" name="fundname" placeholder="Fund Name" />

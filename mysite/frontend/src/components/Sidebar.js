@@ -106,12 +106,14 @@ const Sidebar = (props) => {
         <nav>
             {SidebarData[SidebarType].map((item, index) => {
               return (
-                <Link to={item.path} style={linkStyle}>
-                    <div key={index} className={item.cName}>
-                        {item.icon}<br />
-                        <span>{item.title}</span>
-                    </div>
-                </Link>
+                <div style={{textAlign: 'center'}}>
+                  <Link to={item.path} style={linkStyle}>
+                      <div key={index} className={item.cName}>
+                          {item.icon}<br />
+                          <span>{item.title}</span>
+                      </div>
+                  </Link>
+                </div>
               );
             })}
         </nav>

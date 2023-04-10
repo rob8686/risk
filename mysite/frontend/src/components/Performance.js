@@ -56,10 +56,10 @@ const Performance = () => {
     return(
       <Container fluid>
         <Row>
-          <Col md={12} lg={8}>
+          <Col className='content'>
             <RiskLineChart data={data['performance']['fund_history']} lines={lines} dataKey={'Date'}/>
           </Col>
-          <Col md={12} lg={4}>
+          <Col className='content'>
             <Table responsive size="sm">
               <tr>
                 {headerList}
@@ -71,15 +71,15 @@ const Performance = () => {
           </Col>
         </Row>
         <Row>
-          <Col>
-          <PivotBarChart data={data['performance']['pivots']['pivots']['currency']} dataKey={"currency"} bar={bar}/>
+          <Col className='content'>
+            <PivotBarChart data={data['performance']['pivots']['pivots']['currency']} dataKey={"currency"} bar={bar}/>
           </Col>
-          <Col>
-          <PivotBarChart data={data['performance']['pivots']['pivots']['sector']} dataKey={"sector"} bar={bar}/>
+          <Col className='content'>
+            <PivotBarChart data={data['performance']['pivots']['pivots']['sector']} dataKey={"sector"} bar={bar}/>
           </Col>
         </Row>
           <Row>
-            <Col>  
+            <Col className='content'>  
               <Table striped bordered hover>
                 <tr>
                   {headerList}

@@ -5,6 +5,15 @@ from django.contrib import messages
 from .forms import LoginForm
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import UserSerializer
+from django.contrib.auth.models import User
+from rest_framework import generics
+
+
+class CreateUserView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod

@@ -12,6 +12,7 @@ import Performance from './Performance.js';
 import TopNavBar from './TopNavBar.js';
 import Sidebar from './Sidebar';
 import Login from './Login.js';
+import CreateUser from './CreateUser.js';
 import CreateFund from './CreateFund.js';
 import Brand from './brand.js';
 import { AuthProvider} from './AuthContext.js';
@@ -71,7 +72,7 @@ const App = () => {
         <Router>  
         <AuthProvider>
           <Container fluid style={constainerStyle}>
-            <Row>
+            <Row className='white-btm-brdr'>
               <Col style={{ padding: 0 }} xs={1}>      
                 <Brand/>
               </Col>
@@ -92,6 +93,7 @@ const App = () => {
                     <Route path="/liquidity/:id" element={<Liquidity/>}/>
                     <Route path="/performance/:id" element={<Performance/>}/>
                     <Route path="/login" element={<Login/>}/>
+                    <Route path="/create_user" element={<CreateUser/>}/>
                     <Route path="/create_position/*" element={<CreatePosition/>}/>
                   </Routes>
                 </div>  

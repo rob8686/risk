@@ -140,7 +140,7 @@ const Positions = (props) => {
         </Routes>
         <CreatePosition getPositions={getPositions}/>
         <div className='content'>
-          <RiskTable style='responsive striped bordered hover table-sm' data={positions} columns={columns}/>
+          <RiskTable style='responsive striped bordered hover table-condensed' data={positions} columns={columns}/>
         </div>
     </div>
   )

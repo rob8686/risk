@@ -3,6 +3,7 @@ import Table from 'react-bootstrap/Table';
 import classnames from 'classnames';
 import { useState, useEffect } from 'react'
 import React from 'react';
+import Form from 'react-bootstrap/Form';
 
 const RiskTable = (props) => {
 
@@ -13,8 +14,13 @@ const RiskTable = (props) => {
       }) {
         const count = preFilteredRows.length
       
+        //<Form.Control size="sm" type="text" placeholder="Small text" />
+
         return (
-          <input
+          // change back to input and remove the first 
+          <Form.Control
+            size="sm"
+            type="text"
             style={{ width: "80%" }}
             value={filterValue || ''}
             onChange={e => {
@@ -55,10 +61,12 @@ const RiskTable = (props) => {
 
       return (
         <Table 
-            {...getTableProps()}
+            {...getTableProps()} className={props.style}
             striped={styleArray.includes('striped')}
             bordered={styleArray.includes('bordered')}
             hover={styleArray.includes('hover')}
+            responsive= {styleArray.includes('responsive')}
+            tableSm= {styleArray.includes('table-sm')}
         >
           <thead>
             {headerGroups.map(headerGroup => (

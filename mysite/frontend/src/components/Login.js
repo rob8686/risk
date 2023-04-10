@@ -13,7 +13,8 @@ const Login = () => {
     <Container fluid>
         <Row className="vh-100">
             <Col md={{ span: 6, offset: 3 }}>    
-                <Form onSubmit={loginUser}>
+                <Form className="content" onSubmit={loginUser}>
+                    <h3>Login</h3>
                     <Form.Group className="mb-3" controlId="formBasicUserName" >
                         <Form.Label>Username</Form.Label>
                         <Form.Control type="text" name="username" placeholder="Username" />

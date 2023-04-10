@@ -46,34 +46,35 @@ const CreatePosition = (props) => {
         }
     }  
 
+  //style={{ display: 'inline-flex', fontSize: '12px !important', padding:0,margin:0}}>
+
   return (
-    <Container fluid className='content'> 
-        <Form onSubmit={handleSubmit}>
-            <Row xs="auto">
-                <Col>
-                    <Form.Label>Ticker</Form.Label>
-                </Col>  
-                <Col>
-                    <Form.Group className="mb-3" controlId="formBasicFundName" >
-                        <Form.Control type="text" name="ticker" placeholder="Ticker" />
-                    </Form.Group>
-                </Col>
-                <Col>
-                    <Form.Label>% AUM</Form.Label>
-                </Col>
-                <Col>    
-                    <InputGroup className="mb-3">
-                        <Form.Control placeholder="% AUM" name="percAum" />
-                        <InputGroup.Text>%</InputGroup.Text>
-                    </InputGroup>
-                </Col>
-                <Col>
-                    <Button variant="primary" type="submit">
-                        Submit
-                    </Button>
-                </Col>
-            </Row>
-        </Form>
+    <Container fluid>
+        <div className='content' style={{ display: 'inline-flex', fontSize: '8px !important', padding:0,margin:0,marginTop:1}}>
+            <Form onSubmit={handleSubmit}>
+                <Row xs="auto" className='content' style={{ padding:0,margin:0 }}>
+                    <Col>
+                    <h5>Create Position</h5>
+                    </Col>  
+                    <Col>
+                        <Form.Group className="mb-2" controlId="formBasicFundName" >
+                            <Form.Control size="sm" type="text" name="ticker" placeholder="Ticker" />
+                        </Form.Group>
+                    </Col>
+                    <Col>    
+                        <InputGroup size="sm" className="mb-2">
+                            <Form.Control placeholder="% AUM" name="percAum" />
+                            <InputGroup.Text>%</InputGroup.Text>
+                        </InputGroup>
+                    </Col>
+                    <Col>
+                        <Button size="sm" variant="primary" type="submit">
+                            Submit
+                        </Button>
+                    </Col>
+                </Row>
+            </Form>
+        </div>
   </Container>
   )
 }
