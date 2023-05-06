@@ -25,8 +25,8 @@ const PivotBarChart = (props) => {
         {props.bar}
       </BarChart>
       
-</div>
-)
-}
+  </div>
+  )
+  }
 
 export default PivotBarChart

@@ -74,7 +74,7 @@ class FundViewSet(viewsets.ModelViewSet):
     serializer_class = FundSerializer
 
 class PositionViewSet(viewsets.ModelViewSet):
-    queryset =Position.objects.all()
+    queryset = Position.objects.all()
     permission_classes = [PositionWritePermission]
 
     def get_queryset(self,*args, **kwargs):

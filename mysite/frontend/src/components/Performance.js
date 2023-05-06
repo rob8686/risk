@@ -33,7 +33,7 @@ const Performance = () => {
     const newData = data
 
     const keys = Object.keys(data['performance']['fund_history']["0"])
-    const bar = [<Bar dataKey="perc_contrib" fill="#8884d8" />]   
+    const bar = [<Bar dataKey="perc_contrib" fill="#8884d8" barSize={20} rowHeight={30}/>]   
     const headerList=[<th></th>,<th>Fund</th>,<th>Benchmark</th>];
     const performance = data['performance']['pivots']['performance']
     const itemArray = [['return','Return'], ['std','Volatility'],['sharpe','Sharpe Ratio']]
@@ -68,13 +68,23 @@ const Performance = () => {
                 {rowList}
               </tbody>
             </Table>
+            <Table striped bordered hover>
+                <tr>
+                  {headerList}
+                </tr>
+                <tbody>
+                  {rowList}
+                </tbody>
+              </Table>
           </Col>
         </Row>
         <Row>
           <Col className='content'>
+            <h4>Return Contribution by Currency</h4>
             <PivotBarChart data={data['performance']['pivots']['pivots']['currency']} dataKey={"currency"} bar={bar}/>
           </Col>
           <Col className='content'>
+            <h4>Return Contribution by Sector</h4>
             <PivotBarChart data={data['performance']['pivots']['pivots']['sector']} dataKey={"sector"} bar={bar}/>
           </Col>
         </Row>

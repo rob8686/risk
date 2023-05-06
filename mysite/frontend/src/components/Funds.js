@@ -49,8 +49,13 @@ const fetchData = async (url, requestOptions = '') => {
       </div>
     )
     },
-    {Header: 'Currency', accessor: 'currency',},
-    {Header: 'AUM', accessor: 'aum',},
+    {Header: 'Currency', accessor: 'currency',
+    Cell: ({ value }) => <div style={{ textAlign: 'center' }}>{value}</div>,
+    },
+    {Header: 'AUM', accessor: 'aum',
+    Cell: ({ value }) =>
+    typeof value === 'number' ? <div style={{ textAlign: 'center' }}>{value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div> : value,
+    },
     {Header: 'Date', accessor: 'last_date',},
     {Header: 'liquidity_limit', accessor: 'liquidity_limit',},
     {Header: 'Benchmark', accessor: 'benchmark',},
@@ -82,6 +87,7 @@ const fetchData = async (url, requestOptions = '') => {
       </Link>
     )},
   ]
+
 
   //if (!funds.length) return <div>Loading...</div>
   // <div style={{backgroundColor:'white', margin:'10px', padding:'10px', border: '5px solid blue',}}>

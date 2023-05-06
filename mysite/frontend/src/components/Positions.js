@@ -131,7 +131,7 @@ const Positions = (props) => {
   //  </tbody>
   //</Table>  
 
-  if (!positions.length) return <div>Loading...</div>  
+  //if (!positions.length) return <div>Loading...</div>  
 
   return (
     <div>

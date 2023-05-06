@@ -1,6 +1,6 @@
 import { useTable, useSortBy, useFilters, useGlobalFilter, useAsyncDebounce } from 'react-table'
+//import { useColumns } from 'react-table/columns';
 import Table from 'react-bootstrap/Table';
-import classnames from 'classnames';
 import { useState, useEffect } from 'react'
 import React from 'react';
 import Form from 'react-bootstrap/Form';
@@ -8,14 +8,17 @@ import Form from 'react-bootstrap/Form';
 const RiskTable = (props) => {
 
     const styleArray = props.style.split(' ');
+    //const { toggleColumn } = useColumns(props.columns)
+
+    //useEffect(() => {
+    //  toggleColumn('columnToHide', false)
+    //}, [toggleColumn])
 
     function DefaultColumnFilter({
         column: { filterValue, preFilteredRows, setFilter },
       }) {
         const count = preFilteredRows.length
       
-        //<Form.Control size="sm" type="text" placeholder="Small text" />
-
         return (
           // change back to input and remove the first 
           <Form.Control
@@ -49,7 +52,7 @@ const RiskTable = (props) => {
         []
     )
 
-
+    //toggleColumn('columnName', false) 
 
     const {
         getTableProps,
