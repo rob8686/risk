@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework import viewsets, status
 from .serializers import FundSerializer,PositionSerializer, CreatePositionSerializer
 from .risk_functions import RefreshPortfolio, GetFx, Performance, Liquidity
+from .market_risk import var, Var
 from datetime import datetime
 from django.db.models import Sum, F
 import json
@@ -120,14 +121,16 @@ class PositionViewSet(viewsets.ModelViewSet):
  
 class GetRiskData(APIView):
 
-    def get(self, request, fund_id, fund_currency, benchmark ,format='json'):
+    def get(self, request, fund_id, fund_currency,format='json'):
 
         positions = Position.objects.filter(fund=fund_id).select_related('security') #need this?
         fund = Fund.objects.filter(id=fund_id)[0]
         print('FUND NAME!!!!!')
         print(fund.name)
         print(fund.liquidity_limit)
-        benchmark = benchmark
+        print('Hello World!')
+        print(fund.benchmark)
+        benchmark = fund.benchmark
         ticker_currency_quantity = positions.values_list("security__ticker","security__currency","quantity")
         benchmark_currency = {'SPY':'USD'}
         
@@ -142,7 +145,6 @@ class GetRiskData(APIView):
             interval="1d", group_by='column',auto_adjust=True, prepost=False,threads=True,proxy=None) 
         if len(unique_positions) == 1:
             data.columns = pd.MultiIndex.from_product([data.columns, [ticker_string.split(' ')[0]]])
-
 
         today = datetime.today().strftime('%Y-%m-%d')
         data[data.index < today]['Close'].fillna(method="ffill").dropna()
@@ -184,6 +186,10 @@ class GetRiskData(APIView):
         new_db = client.test_db
         new_collection = new_db.test_collection
         result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data},upsert=True)
+        var(fx_converted_df, yf_dict)
+        var_result = Var(fx_converted_df, yf_dict)
+        var_result.position_weights()
+        var_result.perc_return()
         return Response(performance.get_performance())
 
 class GetLiquidity(APIView):

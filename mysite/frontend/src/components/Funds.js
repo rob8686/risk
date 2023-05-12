@@ -21,12 +21,12 @@ const Funds = (props) => {
 
   const refresh = async (fundId, fundCurrency,fundBenchmark,requestOptions = '') => {
     //const response = await props.fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
-    const response = await fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
-    props.getFunds()
+    const response = await fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}`, requestOptions)
+    getFunds()
   }  
 
-  const handleClick = (event, fundId, fundCurrency,fund_benchmark) => {
-    refresh(fundId, fundCurrency,fund_benchmark)
+  const handleClick = (event, fundId, fundCurrency) => {
+    refresh(fundId, fundCurrency)
   }
 
 const getFunds = async () => {
@@ -57,8 +57,8 @@ const fetchData = async (url, requestOptions = '') => {
     typeof value === 'number' ? <div style={{ textAlign: 'center' }}>{value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div> : value,
     },
     {Header: 'Date', accessor: 'last_date',},
-    {Header: 'liquidity_limit', accessor: 'liquidity_limit',},
-    {Header: 'Benchmark', accessor: 'benchmark',},
+    //{Header: 'liquidity_limit', accessor: 'liquidity_limit',},
+    //{Header: 'Benchmark', accessor: 'benchmark',},
     {Header: 'Portfolio', accessor: row => 'Portfolio',
     Cell: ({ cell }) => (
       //<Link to={`/positions/?fund=${cell.row.values.id}`}>
@@ -70,7 +70,7 @@ const fetchData = async (url, requestOptions = '') => {
     )}, 
     {Header: 'Run Risk', accessor: row => 'Run',
     Cell: ({ cell }) => (
-      <Button value='Run' onClick={(e) => handleClick(e,cell.row.values.id,cell.row.values.currency,cell.row.values.benchmark)}>
+      <Button value='Run' onClick={(e) => handleClick(e,cell.row.values.id,cell.row.values.currency)}>
         Run
       </Button>
     )},
