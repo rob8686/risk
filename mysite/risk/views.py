@@ -147,7 +147,7 @@ class GetRiskData(APIView):
             data.columns = pd.MultiIndex.from_product([data.columns, [ticker_string.split(' ')[0]]])
 
         today = datetime.today().strftime('%Y-%m-%d')
-        data[data.index < today]['Close'].fillna(method="ffill").dropna()
+        data[data.index < today]['Close'].fillna(method="ffill").dropna() #inplace??????
         data.index = data.index.strftime('%Y-%m-%d')
         combined_df = data['Close'].merge(fx_data_df, how='left',left_index=True, right_index=True)
         combined_df = combined_df[combined_df.index < today].fillna(method="ffill").dropna()
@@ -189,7 +189,6 @@ class GetRiskData(APIView):
         var(fx_converted_df, yf_dict)
         var_result = Var(fx_converted_df, yf_dict)
         var_result.position_weights()
-        var_result.perc_return()
         return Response(performance.get_performance())
 
 class GetLiquidity(APIView):
