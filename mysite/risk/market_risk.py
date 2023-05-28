@@ -4,46 +4,23 @@ import math
 import pandas as pd
 
 class Var():
+
     def __init__(self, fx_converted_df, yf_dict):
         self.fx_converted_df = fx_converted_df
-
-        self.fx_converted_np = self.fx_converted_df[:-1].dropna().to_numpy()
+        #self.perc_return_df = self.combined_df.pct_change().dropna().reset_index()
         self.yf_dict = yf_dict
         self.factors = ['SPY','^TNX','BZ=F','^NYICDX','IGLN.L','^VIX']
         risk_factor_df = self.get_factors()
-        print('MERGE!!!!!!!!!!!!')
         self.fx_converted_df.index = pd.to_datetime(self.fx_converted_df.index)
-        print(self.fx_converted_df.columns)
-        print(fx_converted_df.index.dtype)
-        print(fx_converted_df.index)
-        print(self.fx_converted_df.head())
-        
-        print(risk_factor_df.head())
-        print(risk_factor_df.columns)
-        print(risk_factor_df.index.dtype)
-        print(risk_factor_df.index)
-        combined_df = pd.merge(self.fx_converted_df,risk_factor_df, left_index=True, right_index=True)
-        print(combined_df)
-        print(combined_df.head())
-        #print(risk_factor_df.index[0] == fx_converted_df.index[0])
-        print()
-
-
-
-        self.percent_return_df = self.fx_converted_df.dropna().pct_change()
-        self.np_percent_return = self.percent_return_df.to_numpy()
-        #self.percent_return_df.to_csv("Std_test.csv")
-
+        self.combined_df = pd.merge(self.fx_converted_df,risk_factor_df, left_index=True, right_index=True).pct_change().dropna().reset_index()
         self.weights = self.position_weights()
-        self.weighted_return = np.dot(self.perc_return(self.fx_converted_df), self.position_weights())
-        print('HELLOOOOOOO!!!!!!!!!!!!!')
-        print(self.weighted_return)
-        print(self.parametric_var())
-        print('PANDAS STD')
-        print(np.nanstd(self.percent_return_df)*math.sqrt(260))
-        print(self.percent_return_df)
 
-        self.factors = ['SPY','^TNX','BZ=F','^NYICDX','IGLN.L','^VIX']
+    def get_var(self):
+        result = {}
+        result['parametric_var'] = self.parametric_var()
+        result['factor_var'] = self.factor_var()
+        return result
+
 
     def position_weights(self):
         weights = []
@@ -53,33 +30,57 @@ class Var():
         weights_array = np.asarray(weights)
         return weights_array
 
-    def perc_return(self,df):
-        #returns = np.diff(self.fx_converted_df,axis=0)
-        returns = np.diff(df,axis=0)
-        fx_converted_np = df[:-1].dropna().to_numpy()
-        #perc_returns = returns / self.fx_converted_np
-        perc_returns = returns / fx_converted_np
-        return perc_returns
-
     def parametric_var(self):
-        df = self.fx_converted_df
+        print(self.combined_df)
+        returns = self.combined_df.drop(self.factors, axis=1).drop('Date',axis=1)
         weights = self.position_weights()
-        cov = np.cov(self.perc_return(df).T.astype(float))
-        corr = np.corrcoef(self.perc_return(df).T.astype(float))
-        print()
-        print('Correaltion')
-        print(corr)
-        print('Covar')
-        print(cov)
-        std_dev = math.sqrt(np.dot(np.dot(weights,cov),weights.T))
+        cov = np.cov(returns.T.astype(float))
+        corr = np.corrcoef(returns.T.astype(float))
+        std_dev = math.sqrt(weights @ cov @ weights.T)
+        print('STD DEV',std_dev * math.sqrt(260))
         var_1_day = std_dev * 2.33
-        print('port std dev2',math.sqrt(np.dot(np.dot(weights,cov),weights.T))*math.sqrt(260))
-        print('var_1_day')
-        print(var_1_day)
-        return var_1_day
+        print('var_1_day',var_1_day)
+        print(corr)
+        print()
+        return {'var_1_day': var_1_day,'correlation':corr}
     
     def factor_var(self):
-        pass
+        
+        perc_return_df = self.combined_df#.pct_change().dropna()#.reset_index()#self.perc_return(self.combined_df)
+        ci_99 = int(round(perc_return_df.iloc[:, 0].count() *.01,0))
+        data = {}
+        individual_var = {}
+
+        x_date = perc_return_df[self.factors].to_numpy()
+        x = x_date[:,0:].astype(float)
+
+        y_df = perc_return_df.drop(self.factors, axis=1)
+        y_df = self.weights * y_df.loc[:, y_df.columns != 'Date']
+
+        for ticker in y_df.columns:
+            y = y_df[ticker].to_numpy()
+            b = np.linalg.inv(x.T @ x) @ x.T @ y
+            print(ticker)
+            print(b)
+            result_list = []
+            for row in x_date:
+                #print(row)
+                result = row * b
+                result_list.append(result.item(0))
+            data[ticker] = result_list
+            var = sorted(result_list)[ci_99-1] 
+            individual_var[ticker] = var
+            print()
+
+        date_list = [date for date in perc_return_df['Date']]
+        data['Date'] = date_list
+        result_df = pd.DataFrame.from_dict(data)
+        result_df['fund_return'] = result_df.sum(axis=1)
+        result_df = result_df.sort_values(by=['fund_return'])
+        var_1d = abs(result_df.iloc[ci_99]['fund_return'])
+        var_20d = var_1d * math.sqrt(20)
+        pl_history = result_df[['Date','fund_return']].to_json(orient="columns")
+        return {'var_1d':var_1d, 'individual_var':individual_var,'var_history':pl_history}
 
     def get_factors(self):
         ticker_string = ''

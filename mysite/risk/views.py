@@ -125,11 +125,6 @@ class GetRiskData(APIView):
 
         positions = Position.objects.filter(fund=fund_id).select_related('security') #need this?
         fund = Fund.objects.filter(id=fund_id)[0]
-        print('FUND NAME!!!!!')
-        print(fund.name)
-        print(fund.liquidity_limit)
-        print('Hello World!')
-        print(fund.benchmark)
         benchmark = fund.benchmark
         ticker_currency_quantity = positions.values_list("security__ticker","security__currency","quantity")
         benchmark_currency = {'SPY':'USD'}
@@ -186,9 +181,8 @@ class GetRiskData(APIView):
         new_db = client.test_db
         new_collection = new_db.test_collection
         result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data},upsert=True)
-        var(fx_converted_df, yf_dict)
-        var_result = Var(fx_converted_df, yf_dict)
-        var_result.position_weights()
+        var_result = Var(fx_converted_df.drop(benchmark,axis=1), yf_dict)
+        print(var_result.get_var())
         return Response(performance.get_performance())
 
 class GetLiquidity(APIView):
