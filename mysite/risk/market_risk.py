@@ -29,10 +29,10 @@ class Var():
             weights.append(weight)
         weights_array = np.asarray(weights)
         return weights_array
-
+    
     def parametric_var(self):
         print(self.combined_df)
-        returns = self.combined_df.drop(self.factors, axis=1).drop('Date',axis=1)
+        returns = self.combined_df.drop(self.factors, axis=1).drop('Date',axis=1).to_numpy()
         weights = self.position_weights()
         cov = np.cov(returns.T.astype(float))
         corr = np.corrcoef(returns.T.astype(float))
