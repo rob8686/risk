@@ -86,6 +86,12 @@ const fetchData = async (url, requestOptions = '') => {
         <RiskButton status={cell.row.values.performance_status}/>
       </Link>
     )},
+    {Header: 'Market Risk', accessor: 'market_risk',
+    Cell: ({ cell }) => (
+      <Link to={`/market_risk/${cell.row.values.id}`}>
+        <RiskButton status={cell.row.values.performance_status}/>
+      </Link>
+    )},
   ]
 
 

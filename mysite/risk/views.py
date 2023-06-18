@@ -180,9 +180,14 @@ class GetRiskData(APIView):
         client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
         new_db = client.test_db
         new_collection = new_db.test_collection
-        result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data},upsert=True)
-        var_result = Var(fx_converted_df.drop(benchmark,axis=1), yf_dict)
-        print(var_result.get_var())
+        var_result = Var(fx_converted_df.drop(benchmark,axis=1), yf_dict, new_collection)
+        var_data = var_result.get_var()
+        var_result.get_var()
+        print(var_data)
+        result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data,'market_risk':var_data},upsert=True)
+        #var_result = Var(fx_converted_df.drop(benchmark,axis=1), yf_dict, new_collection)
+        #print(var_result.get_var())
+        var_result.get_var()
         return Response(performance.get_performance())
 
 class GetLiquidity(APIView):
@@ -199,6 +204,16 @@ class GetPerformance(APIView):
         collection = db.test_collection
         document = collection.find_one({'_id':fund_id})
         return Response(document["performance"])
+        #return True
+
+class GetMarketRisk(APIView):
+    def get(self, request, fund_id, format='json'):
+        db = client.test_db
+        collection = db.test_collection
+        document = collection.find_one({'_id':fund_id})
+        print('RETURN MR')
+        print(document["market_risk"])
+        return Response(document["market_risk"])
         #return True
 
 

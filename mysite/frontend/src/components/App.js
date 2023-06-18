@@ -9,6 +9,7 @@ import AddFund from './AddFund.js';
 import Positions from './Positions.js';
 import Liquidity from './Liquidity.js';
 import Performance from './Performance.js';
+import MarketRisk from './MarketRisk.js';
 import TopNavBar from './TopNavBar.js';
 import Sidebar from './Sidebar';
 import Login from './Login.js';
@@ -92,6 +93,7 @@ const App = () => {
                     <Route path="/positions/:id" element={<Positions/>}/>
                     <Route path="/liquidity/:id" element={<Liquidity/>}/>
                     <Route path="/performance/:id" element={<Performance/>}/>
+                    <Route path="/market_risk/:id" element={<MarketRisk/>}/>
                     <Route path="/login" element={<Login/>}/>
                     <Route path="/create_user" element={<CreateUser/>}/>
                     <Route path="/create_position/*" element={<CreatePosition/>}/>
