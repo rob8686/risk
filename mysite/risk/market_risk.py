@@ -5,6 +5,7 @@ import pandas as pd
 import pymongo
 import datetime
 import json
+import datetime as dt
 
 class Var():
 
@@ -32,6 +33,7 @@ class Var():
         result['factor_var'] = self.factor_var2()
         result['tickers'] = list(self.tickers) 
         #result['factor_var'] = self.factor_var()
+        result['stress_tests'] = self.stress_tests()
         return result
 
     def position_weights(self):
@@ -58,6 +60,9 @@ class Var():
         return {'var_1_day': var_1_day,'correlation':corr.tolist()}
     
     def linear_model(self, x):
+
+        x_date = self.combined_df[self.factors].to_numpy()
+        x = x_date[:,0:].astype(float)
         
         y_df = self.combined_df.drop(self.factors, axis=1)
         y_df = self.weights * y_df.loc[:, y_df.columns != 'Date']
@@ -75,6 +80,8 @@ class Var():
             b = np.linalg.inv(x.T @ x) @ x.T @ y
             print(ticker)
             print(b)
+            print('XCXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+            print(x)
             result[ticker] = b
             result_array[idx] = b
             print()
@@ -85,7 +92,8 @@ class Var():
         
         ci_99 = int(round(self.combined_df.iloc[:, 0].count() *.01,0))
         x_date = self.combined_df[self.factors].to_numpy()
-        dates = list(self.combined_df['Date'])
+        print(self.combined_df.dtypes)
+        dates = list(self.combined_df['Date'].dt.strftime('%Y-%m-%d'))
         x = x_date[:,0:].astype(float)
         b = self.linear_model(x)
 
@@ -114,6 +122,45 @@ class Var():
             chart_list.append(row_dict)
              
         return {'var_1d':var_1d.tolist(), 'individual_var':individual_var.tolist(),'var_history':hist_series.tolist(), 'dates': dates,'chart_list':chart_list}
+    
+    def stress_tests(self):
+
+        stresses = np.array([
+          [.1, 0, 0, 0, 0, 0],
+          [.05, 0, 0, 0, 0, 0],
+          [-.1, 0, 0, 0, 0, 0],
+          [-.05, 0, 0, 0, 0, 0],
+          [0,.1, 0, 0, 0, 0],
+          [0, -.1, 0, 0, 0, 0],
+          [0, 0, 0, .1, 0, 0],  
+          [0, 0, 0, -.1, 0, 0],
+         ])
+        
+        print('Stress Tests')
+        print(stresses)
+
+        b = self.linear_model(1)
+
+        print(b)
+        result = stresses @ b.T
+        stress_result = result.sum(axis=1).tolist()
+        stress_names = ['Equity up 10%', 'Equity up 5%', 'Equity down 10%', 'Equity down 5%', 
+                        'Interest Rates up 10%','Interest Rates down 10%', 'Dollar up 10%','Dollar down 10%']
+        
+
+        def create_dict(stress_names, stress_result):
+            return {'stress': stress_names,'result':stress_result}
+
+        combined_stress = list(map(create_dict, stress_names, stress_result))
+        
+        #combined_stress = dict(zip(stress_names, stress_result))
+
+        print(result)
+        print(stress_result)
+        print(combined_stress)
+        print()
+        return {'stress_tests':combined_stress}
+        
 
     
     def factor_var(self):
@@ -180,9 +227,6 @@ class Var():
         data.index.rename('Date',inplace=True)
         return data
     
-    def stress_tests(self):
-
-        pass
         
 #def var(weights, data):
 def var(fx_converted_df, yf_dict):

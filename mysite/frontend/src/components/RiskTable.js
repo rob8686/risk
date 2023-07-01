@@ -70,6 +70,7 @@ const RiskTable = (props) => {
             hover={styleArray.includes('hover')}
             responsive= {styleArray.includes('responsive')}
             tableSm= {styleArray.includes('table-sm')}
+            overflowAuto = {styleArray.includes('overflow-auto')}
         >
           <thead>
             {headerGroups.map(headerGroup => (

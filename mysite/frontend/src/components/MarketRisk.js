@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import Tab from 'react-bootstrap/Tab';
 import Tabs from 'react-bootstrap/Tabs';
 import Table from 'react-bootstrap/Table'
+import MarketRiskBarChart from './MarketRiskBarChart';
+import RiskTable from './RiskTable.js';
+import Container from 'react-bootstrap/Container';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+import SideTable from './SideTable.js';
 
 const MarketRisk = () => {
 
@@ -34,7 +40,22 @@ const MarketRisk = () => {
 
   console.log('DATAAAAAAAAAAAAAA')
   console.log(data)
+  
   if (!Object.keys(data).length) return <div>Loading...</div>
+
+  const columns = [
+    {Header: 'Date', accessor: 'name'},
+    {Header: 'PL', accessor: 'PL', sortType: 'basic',
+    Cell: ({ value }) => (value * 100).toFixed(2) + '%'}
+  ]
+
+  {data['tickers'].map((ticker,index)=>{
+    //return <th key={index + 1}>{ticker}</th>
+    console.log('NEW HELLO')
+    console.log(index, ticker)
+  })}
+
+  console.log(data['factor_var']['chart_list'])
   return (
     <Tabs
       defaultActiveKey="hist"
@@ -43,9 +64,28 @@ const MarketRisk = () => {
       className="mb-3 content"
     >
       <Tab eventKey="hist" title="VaR - Historical Simulation">
-        <div className='content'>
-        <div><b>1 Day VaR - 99% CI:</b>{data['factor_var']['var_1d'].at(-1)}</div>
-        </div>  
+        <Container fluid style={{ height: '98%' }}>
+        <Row>
+          <Col className='content'>
+            <b>1 Day VaR - 99% CI:</b>{data['factor_var']['var_1d'].at(-1)}
+          </Col>
+        </Row>
+        <Row>
+          <Col className='content' xs={9}>
+              <MarketRiskBarChart data={data['factor_var']['chart_list']} axis={'name'} bar={'PL'}></MarketRiskBarChart>
+          </Col>
+          <Col className='content'>
+          <div>
+              <SideTable data={data['factor_var']['chart_list']} columns={columns}/> 
+            </div>
+          </Col>
+        </Row>
+        <Row>
+          <Col>
+            Hello
+          </Col>
+        </Row>
+        </Container>  
       </Tab>
       <Tab eventKey="profile" title="VaR - Parametric">
         <div className='content'>
@@ -74,7 +114,9 @@ const MarketRisk = () => {
         </div>
       </Tab>
       <Tab eventKey="stress" title="Stress Tests">
-        Tab content for Contact
+        <div>
+          <MarketRiskBarChart data={data['stress_tests']['stress_tests']} axis={'stress'} bar={'result'}></MarketRiskBarChart>
+        </div>
       </Tab>
     </Tabs>
   );
