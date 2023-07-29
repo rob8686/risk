@@ -10,7 +10,7 @@ const MarketRiskBarChart = (props) => {
         width={500}
         height={300}
         data={props.data}
-        //layout="vertical" barCategoryGap={1}
+        barCategoryGap={1}
         margin={{
           top: 5,
           right: 30,
@@ -19,17 +19,18 @@ const MarketRiskBarChart = (props) => {
         }}
       >
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey={props.axis} />
-        <YAxis />
+        <XAxis dataKey={props.axis}/>
+        <YAxis/>
         <Tooltip />
         <Legend />
+        <ReferenceLine x={0} stroke="#000" />
         <Bar dataKey={props.bar}> 
         {props.data.map((datum, entry, index) => (
           //https://stackoverflow.com/questions/62701150/positive-negative-bar-chart-color-w-recharts
             <Cell
                 key={`cell-${index}`}
                 fill={
-                    datum > 0
+                    datum[props.bar] > 0
                         ? 'green'
                         : 'red'
                 }

@@ -68,11 +68,16 @@ class PositionWritePermission(BasePermission):
 
 class FundViewSet(viewsets.ModelViewSet):
     print(PositionWritePermission)
+    print('HERE!!! LOG IN?')
     permission_classes = [IsAuthenticatedOrReadOnly]
+    print('222222222222222222')
     authentication_classes = [JWTAuthentication]
+    print('333333333333333333')
     #permission_classes = [PositionWritePermission]
     queryset =Fund.objects.all()
+    print('444444444444444444')
     serializer_class = FundSerializer
+    print('5555555555555555')
 
 class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.all()
@@ -80,9 +85,7 @@ class PositionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self,*args, **kwargs):
         fund = self.request.GET.get('fund')
-        print(self.request)
-        print('HELP "" ** (())')
-        print('FUnd',fund)
+
         if fund:
             return Position.objects.filter(fund=fund)
         return Position.objects.all()
@@ -90,7 +93,7 @@ class PositionViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return CreatePositionSerializer
-        else : 
+        else: 
             return PositionSerializer
 
     def create(self, request, *args, **kwargs):

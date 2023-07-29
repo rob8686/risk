@@ -91,8 +91,8 @@ const Sidebar = (props) => {
         minHeight:'100vh',
         height: '100%',
         //float: 'left',
-        // position: 'fixed'
-        // you can also set other styles such as padding, margin, etc. here
+        //position: 'fixed'
+        //you can also set other styles such as padding, margin, etc. here
       };
 
     const linkStyle = {

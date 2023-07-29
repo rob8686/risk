@@ -34,6 +34,7 @@ class Var():
         result['tickers'] = list(self.tickers) 
         #result['factor_var'] = self.factor_var()
         result['stress_tests'] = self.stress_tests()
+        result['hist_series'] = self.hist_series()
         return result
 
     def position_weights(self):
@@ -43,6 +44,18 @@ class Var():
             weights.append(weight)
         weights_array = np.asarray(weights)
         return weights_array
+    
+    def hist_series(self):
+        return_df = self.combined_df.drop(self.factors, axis=1)
+        weighted_return_df = self.weights * return_df.loc[:, return_df.columns != 'Date']
+        weighted_return_df['return'] = weighted_return_df.sum(axis=1)
+        hist, bin_edges = np.histogram( list(weighted_return_df['return']),bins=20)
+
+        def create_dict(frequency, result):
+            return {'frequency': frequency,'return':result}
+
+        combined = list(map(create_dict, hist.tolist(), bin_edges.tolist()))
+        return list(combined)
     
     def parametric_var(self):
         print(self.combined_df)

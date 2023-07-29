@@ -42,34 +42,24 @@ class CreatePositionSerializer(serializers.ModelSerializer):
         ticker = validated_data['security']
         fund = validated_data['fund']
         securities = Security.objects.filter(ticker=ticker)
-        print()
-        print('Securities???')
-        print(securities)
-        #security_currency = securities[0].currency
         funds = Fund.objects.filter(pk=fund)
         fund_currency = funds[0].currency
-        print('FUnd Currency')
-        print(fund_currency)
         validated_data['fund'] = funds.first()
-        print('HELP ME 22')
         if securities.first():
             validated_data['security'] = securities.first()
             security_currency = securities[0].currency
-            print('Are we here?')
-            print(securities.first())
         else:
             yf_ticker = yf.Ticker(ticker)
-            print('yf_ticker')
-            print(yf_ticker)
             ticker_info = yf_ticker.info
-            print(ticker_info)
 
             if len(ticker_info) > 3:
-                new_security = Security.objects.create(
+                security = Security.objects.create(
                     name=ticker_info['longName'], ticker=ticker, 
                     sector=ticker_info['sector'],industry=ticker_info['industry'],
                     asset_class=ticker_info['quoteType'], currency=ticker_info['currency'])
                 security_currency = ticker_info['currency']
+
+                validated_data['security'] =  security
 
         if isinstance(validated_data['security'], Security):
             closing_price = yf.Ticker(ticker).history(period="1d")['Close']
@@ -84,7 +74,5 @@ class CreatePositionSerializer(serializers.ModelSerializer):
             validated_data['mkt_value_base'] = validated_data['mkt_value_local'] * float(fx_rate) 
             validated_data['percent_aum'] = validated_data['mkt_value_base'] / funds[0].aum
 
-
         obj = Position.objects.create(**validated_data)
-
         return obj       
