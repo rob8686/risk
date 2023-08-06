@@ -5,6 +5,7 @@ import datetime
 import pandas as pd
 import numpy as np
 from collections import Counter
+import time
 
 class RefreshPortfolio:
     def __init__(self, yf_data, positions):
@@ -36,34 +37,41 @@ class GetFx:
         self.to_currency = to_currency
 
     def fx_from_api(self, from_currency):
-        print(self.to_currency)
-        print(from_currency)
         apikey='2M3IEELDCP3HPW2F'
         url = f'https://www.alphavantage.co/query?function=FX_DAILY&from_symbol={from_currency}&to_symbol={self.to_currency}&outputsize=full&apikey={apikey}'
         r = requests.get(url)
         data = r.json()
         return data
 
-    def json_to_df(self, fx_dict, from_currency):
-        df =  pd.DataFrame.from_dict(fx_dict['Time Series FX (Daily)']).T['4. close']
-        df = df.rename(from_currency)
-        df = df.astype('float')
-        return df
-
-    def combined_fx_data(self):
+    def get_fx(self, date=None):
         df = pd.DataFrame()
-
-        for currency in self.currency_set:
-            if currency != self.to_currency:
-                fx_dict = self.fx_from_api(currency)
-                fx_df = self.json_to_df(fx_dict,currency)
-                df = pd.concat([df, fx_df],axis=1)
         
-        return df
+        for index, currency in enumerate(self.currency_set,start=1):
 
-    def get_fx(self, from_currency, date):
-        fx_dict = self.fx_from_api(from_currency)
-        return fx_dict['Time Series FX (Daily)'][date]['4. close']
+            # 5 API call per minute limit
+            if index % 5 == 0:
+                time.sleep(60)
+
+            # if each currency in the pair is different get the data from the API
+            # if a date has been enterd a rate for 1 currency on that datw will be returned
+            # if no date enetered a df with the currencies requested will be returned 
+            if currency != self.to_currency:
+                fx_json = self.fx_from_api(currency)
+                if 'Note' in fx_json:
+                    return 'API Limit Reached'
+                if 'Error Message' in fx_json:
+                    return 'Invalid Currency Code'
+                if date != None:
+                    return fx_json['Time Series FX (Daily)'][date]['4. close']
+                fx_df =  pd.DataFrame.from_dict(fx_json['Time Series FX (Daily)']).T['4. close']
+                fx_df = fx_df.astype('float')
+                fx_df = fx_df.rename(currency)
+                df = pd.concat([df, fx_df],axis=1)
+            # if both currencies are the same when a specific date is request return a rate of 1  
+            elif date != None:
+                return 1
+
+        return df
 
 class Liquidity:
     def __init__(self, yf_data, positions, liq_limit):

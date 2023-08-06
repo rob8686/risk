@@ -25,10 +25,10 @@ class Var():
         result = {}
         x_date = self.combined_df[self.factors].to_numpy()
         x = x_date[:,0:].astype(float)
-        print('Linear Model111111111111111111111')
-        print(self.linear_model(x))
-        print('FACTOR222222')
-        print(self.factor_var2())
+        #print('Linear Model111111111111111111111')
+        #print(self.linear_model(x))
+        #print('FACTOR222222')
+        #print(self.factor_var2())
         result['parametric_var'] = self.parametric_var()
         result['factor_var'] = self.factor_var2()
         result['tickers'] = list(self.tickers) 
@@ -58,18 +58,17 @@ class Var():
         return list(combined)
     
     def parametric_var(self):
-        print(self.combined_df)
         returns = self.combined_df.drop(self.factors, axis=1).drop('Date',axis=1).to_numpy()
         weights = self.position_weights()
         cov = np.cov(returns.T.astype(float))
         corr = np.around(np.corrcoef(returns.T.astype(float)),2)
         #myList = list(np.around(np.array(myList),2))
         std_dev = math.sqrt(weights @ cov @ weights.T)
-        print('STD DEV',std_dev * math.sqrt(260))
+        #print('STD DEV',std_dev * math.sqrt(260))
         var_1_day = std_dev * 2.33
-        print('var_1_day',var_1_day)
-        print(corr)
-        print()
+        #print('var_1_day',var_1_day)
+        #print(corr)
+        #print()
         return {'var_1_day': var_1_day,'correlation':corr.tolist()}
     
     def linear_model(self, x):
@@ -79,7 +78,7 @@ class Var():
         
         y_df = self.combined_df.drop(self.factors, axis=1)
         y_df = self.weights * y_df.loc[:, y_df.columns != 'Date']
-        print('Linear Model!!!!!!!!!!')
+        #print('Linear Model!!!!!!!!!!')
         result={}
         result_array = np.array([])
         column_length = len(y_df.columns)
@@ -87,17 +86,17 @@ class Var():
         result_array = np.zeros(shape=(column_length, factor_num))
 
         for idx, ticker in enumerate(y_df.columns):
-            print('Index',idx)
-            print()
+            #print('Index',idx)
+            #print()
             y = y_df[ticker].to_numpy()
             b = np.linalg.inv(x.T @ x) @ x.T @ y
-            print(ticker)
-            print(b)
-            print('XCXXXXXXXXXXXXXXXXXXXXXXXXXXX')
-            print(x)
+            #print(ticker)
+            #print(b)
+            #print('XCXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+            #print(x)
             result[ticker] = b
             result_array[idx] = b
-            print()
+            #print()
 
         return result_array
     
@@ -105,7 +104,7 @@ class Var():
         
         ci_99 = int(round(self.combined_df.iloc[:, 0].count() *.01,0))
         x_date = self.combined_df[self.factors].to_numpy()
-        print(self.combined_df.dtypes)
+        #print(self.combined_df.dtypes)
         dates = list(self.combined_df['Date'].dt.strftime('%Y-%m-%d'))
         x = x_date[:,0:].astype(float)
         b = self.linear_model(x)
@@ -149,12 +148,12 @@ class Var():
           [0, 0, 0, -.1, 0, 0],
          ])
         
-        print('Stress Tests')
-        print(stresses)
+        #print('Stress Tests')
+        #print(stresses)
 
         b = self.linear_model(1)
 
-        print(b)
+        #print(b)
         result = stresses @ b.T
         stress_result = result.sum(axis=1).tolist()
         stress_names = ['Equity up 10%', 'Equity up 5%', 'Equity down 10%', 'Equity down 5%', 
@@ -168,9 +167,9 @@ class Var():
         
         #combined_stress = dict(zip(stress_names, stress_result))
 
-        print(result)
-        print(stress_result)
-        print(combined_stress)
+        #print(result)
+        #print(stress_result)
+        #print(combined_stress)
         print()
         return {'stress_tests':combined_stress}
         
@@ -243,9 +242,6 @@ class Var():
         
 #def var(weights, data):
 def var(fx_converted_df, yf_dict):
-    print('Market Risk!')
-    print(fx_converted_df)
-    print(yf_dict)
     np.array([[.1, 0,0,0,0], [3, 4]])
 
 #weighted_return_df = pd.DataFrame()

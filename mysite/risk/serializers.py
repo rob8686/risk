@@ -13,7 +13,6 @@ class FundSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fund
         fields = '__all__'
-        #read_only_fields = ('last_date',)
 
 class SecuritySerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,7 +26,6 @@ class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
         fields = '__all__'
-        #depth = 1
  
 class CreatePositionSerializer(serializers.ModelSerializer):
 
@@ -39,35 +37,43 @@ class CreatePositionSerializer(serializers.ModelSerializer):
         fields = ('security','fund','percent_aum')
 
     def create(self, validated_data):
+
+        # filter Fund and Security objects by the data provided
+        # then replace the security and fund strings the returned objects  
         ticker = validated_data['security']
         fund = validated_data['fund']
         securities = Security.objects.filter(ticker=ticker)
         funds = Fund.objects.filter(pk=fund)
         fund_currency = funds[0].currency
         validated_data['fund'] = funds.first()
+
+        # If the security is already in the DB use it
         if securities.first():
             validated_data['security'] = securities.first()
             security_currency = securities[0].currency
+        # else download the security data from yfinance and create a new Security    
         else:
             yf_ticker = yf.Ticker(ticker)
             ticker_info = yf_ticker.info
-
+ 
+            # this is the lenght of an empty response
             if len(ticker_info) > 3:
                 security = Security.objects.create(
                     name=ticker_info['longName'], ticker=ticker, 
                     sector=ticker_info['sector'],industry=ticker_info['industry'],
                     asset_class=ticker_info['quoteType'], currency=ticker_info['currency'])
+                
                 security_currency = ticker_info['currency']
-
                 validated_data['security'] =  security
 
+        # add the remaining Position fields to the data 
         if isinstance(validated_data['security'], Security):
             closing_price = yf.Ticker(ticker).history(period="1d")['Close']
             closing_price.index = closing_price.index.strftime('%Y/%m/%d')
             validated_data['last_price'] = closing_price.item()
             validated_data['price_date'] = datetime.datetime.strptime(closing_price.index[0],'%Y/%m/%d').strftime('%Y-%m-%d')
             get_fx = GetFx([security_currency],fund_currency)
-            fx_rate = get_fx.get_fx(security_currency,validated_data['price_date'])
+            fx_rate = get_fx.get_fx(validated_data['price_date'])
             validated_data['fx_rate'] = fx_rate    
             validated_data['quantity'] = math.floor((validated_data['percent_aum'] * funds[0].aum / 100) / closing_price / float(fx_rate))
             validated_data['mkt_value_local'] = validated_data['last_price'] * validated_data['quantity']
