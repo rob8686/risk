@@ -98,12 +98,6 @@ class GetRiskData(APIView):
     def get(self, request, fund_id, fund_currency,format='json'):
 
         positions = Position.objects.filter(fund=fund_id).select_related('security') #need this?
-        print()
-        agg = Position.objects.filter(fund=fund_id).aggregate(Sum("quantity"))
-        #.aggregate(sum("qunatity"))
-        print(agg)
-        print('POsitions')
-        print(positions)
         fund = Fund.objects.filter(id=fund_id)[0]
         benchmark = fund.benchmark
         ticker_currency_list = list(positions.values_list("security__ticker","security__currency"))
@@ -144,46 +138,43 @@ class GetRiskData(APIView):
 
         # need to update for CCY!!!!
         refresh = RefreshPortfolio(combined_df,positions)
-        refresh.test()
+        refresh.refresh()
 
-        yf_dict ={}
-        yf_dict_2 = {}
+        # aggregate the positons by ticker and qunatity and store some static data in yf_dict
+        position_info_dict ={}
         for position in positions:
             sector = position.security.sector
             currency = position.security.currency
             quantity = positions.filter(security__ticker=position).aggregate(Sum("quantity"))['quantity__sum']
             percent_aum = positions.filter(security__ticker=position).aggregate(Sum("percent_aum"))['percent_aum__sum']
+            position_info_dict[str(position)] = [quantity, percent_aum, sector, currency]
 
-            if str(position) in yf_dict:
-                yf_dict[str(position)] = [yf_dict[str(position)][0] + position.quantity,yf_dict[str(position)][1] + position.percent_aum, sector, currency]
-            else:
-                yf_dict[str(position)] = [position.quantity,position.percent_aum, sector, currency]
-
-            yf_dict_2[str(position)] = [quantity, percent_aum, sector, currency]
-            print('YF 2""""""""""""""""""""""""""2')
-            print(yf_dict_2) 
-            print(yf_dict) 
-            print()
-            
-        risk_dict = {}
-        performance = Performance(fx_converted_df, yf_dict, benchmark)
+        # Calcualte Performance metrics and store in MongoDB    
+        performance = Performance(fx_converted_df, position_info_dict, benchmark)
         performance_data = performance.get_performance()
         fund.performance_status = performance_data['performance']['pivots']['performance']['status']
+
+        # Calcualte Liquidity metrics
         data.drop(columns=[benchmark],inplace=True, level=1)
-        liquidity2 = Liquidity(data,yf_dict, fund.liquidity_limit)
+        liquidity2 = Liquidity(data,position_info_dict, fund.liquidity_limit)
         liquidity_data = liquidity2.get_liquidity()
         fund.liquidity_status = liquidity_data['status']
-        fund.save()
+        print()
+        print('NEW LIQUIDITY !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print(liquidity_data)
+        print()
+
+        # Calcualte Market Risk metrics
         client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
         new_db = client.test_db
         new_collection = new_db.test_collection
-        var_result = Var(fx_converted_df.drop(benchmark,axis=1), yf_dict, new_collection)
+        var_result = Var(fx_converted_df.drop(benchmark,axis=1), position_info_dict, new_collection)
         var_data = var_result.get_var()
-        var_result.get_var()
+
+        # Stored the calcualted metrics in MongoDB 
         result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data,'market_risk':var_data},upsert=True)
-        #var_result = Var(fx_converted_df.drop(benchmark,axis=1), yf_dict, new_collection)
-        #print(var_result.get_var())
-        var_result.get_var()
+        fund.save()
+
         return Response(performance.get_performance(),status=status.HTTP_200_OK)
 
 class GetLiquidity(APIView):

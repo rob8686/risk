@@ -87,7 +87,7 @@ class FundTests(APITestCase):
 class GetRiskDataTests(APITestCase):
 
     def setUp(self):
-        Fund.objects.create(id=201,name='Test 2 Fund',currency='USD',aum=1000000, benchmark='SPY', liquidity_limit='7')
+        Fund.objects.create(id=201,name='Test 2 Fund',currency='USD',aum=10000000000, benchmark='SPY', liquidity_limit='7')
         url = reverse('position-list')
         data = {'security': 'TTWO', 'fund': 201, 'percent_aum': '10'} 
         self.client.post(url, data, format='json')
