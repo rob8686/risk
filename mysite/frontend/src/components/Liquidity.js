@@ -82,8 +82,8 @@ function Liquidity() {
               accessor: '365',
             },
             {
-              Header: '365+',
-              accessor: '365+',
+              Header: '366',
+              accessor: '366',
             },
       ]
 
