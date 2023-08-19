@@ -10,6 +10,7 @@ from .. import views
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import AccessToken
 from pymongo import MongoClient
+from django.db.models import Sum
 
 class PositionTests(APITestCase):
 
@@ -87,7 +88,7 @@ class FundTests(APITestCase):
 class GetRiskDataTests(APITestCase):
 
     def setUp(self):
-        Fund.objects.create(id=201,name='Test 2 Fund',currency='USD',aum=10000000000, benchmark='SPY', liquidity_limit='7')
+        self.fund = Fund.objects.create(id=201,name='Test 2 Fund',currency='USD',aum=10000000000, benchmark='SPY', liquidity_limit='7')
         url = reverse('position-list')
         data = {'security': 'TTWO', 'fund': 201, 'percent_aum': '10'} 
         self.client.post(url, data, format='json')
@@ -112,9 +113,30 @@ class GetRiskDataTests(APITestCase):
 
     def test_A_then_B(self):
         self.Test_run_risk()
+
         liquidity_url = reverse('risk:liquidity' ,args=[201])
         response = self.client.get(liquidity_url, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.json()
+        cumulative = data['cumulative']
+        result = data['result']
+        positions = Position.objects.filter(fund=201)
+        total_perc_aum = positions.aggregate(Sum("percent_aum"))['percent_aum__sum']
+        tickers = list(positions.values_list("security__ticker",flat=True))
+        subrows = result[0]['subRows']
+        subrow_tickers = [subrow['type'] for subrow in subrows]
+        self.assertEqual(tickers.sort(), subrow_tickers.sort())
+
+        self.assertEqual(round(cumulative[6]['100'],2),round(cumulative[6]['50'],2),round(cumulative[6]['30'],2))
+        self.assertEqual(round(total_perc_aum,2), round(cumulative[6]['100'],2))
+
+        sum = 0
+        for days in cumulative:
+            for row in subrows:
+                sum = sum + row[days['name']]
+            self.assertEqual(round(sum,2), round(days['100'],2))
+
         performance_url = reverse('risk:performance' ,args=[201])
         response = self.client.get(performance_url, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)

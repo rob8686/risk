@@ -16,6 +16,7 @@ const ExtandableRiskTable = (props) => {
 
     console.log('COLUMNSSSSSSSSSSSS')
     console.log(columns)
+    console.log(data)
 
     const {
         getTableProps,

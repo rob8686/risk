@@ -82,7 +82,7 @@ function Liquidity() {
               accessor: '365',
             },
             {
-              Header: '366',
+              Header: '365+',
               accessor: '366',
             },
       ]
@@ -91,9 +91,11 @@ function Liquidity() {
     if (!data['result']) return <div>Loading...</div>  
     const lines= [
         <Line type="monotone" dataKey="100" stroke="#8884d8" activeDot={{ r: 8 }} />,
-        <Line type="monotone" dataKey="50" stroke="#82ca9d" />
+        <Line type="monotone" dataKey="50" stroke="#82ca9d" />,
+        <Line type="monotone" dataKey="30" stroke="#ffc658" />
     ]
-
+    console.log('DATA NEW')
+    console.log(data)
     return (
       <Container>
         <Row>
