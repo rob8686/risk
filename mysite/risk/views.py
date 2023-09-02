@@ -189,6 +189,13 @@ class GetPerformance(APIView):
         db = client.test_db
         collection = db.test_collection
         document = collection.find_one({'_id':fund_id})
+        print(document["performance"])
+        print()
+        for i in document["performance"]:
+            print(i) 
+            print('hEREEEEEEE 77')
+        print('PIVOTSSSSSSSSSSSS')
+        print(document['performance']['performance']['pivots'])
         return Response(document["performance"],status=status.HTTP_200_OK)
 
 class GetMarketRisk(APIView):

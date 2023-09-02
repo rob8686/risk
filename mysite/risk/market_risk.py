@@ -63,7 +63,13 @@ class Var():
         cov = np.cov(returns.T.astype(float))
         corr = np.around(np.corrcoef(returns.T.astype(float)),2)
         #myList = list(np.around(np.array(myList),2))
-        std_dev = math.sqrt(weights @ cov @ weights.T)
+        print(len(returns[0]))
+        print(returns.ndim)
+        print()
+        if len(returns[0]) != 1:
+            std_dev = math.sqrt(weights @ cov @ weights.T)
+        else:
+            std_dev = .2
         #print('STD DEV',std_dev * math.sqrt(260))
         var_1_day = std_dev * 2.33
         #print('var_1_day',var_1_day)
