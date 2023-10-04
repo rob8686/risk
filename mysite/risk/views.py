@@ -152,6 +152,8 @@ class GetRiskData(APIView):
         # Calcualte Performance metrics and store in MongoDB    
         performance = Performance(fx_converted_df, position_info_dict, benchmark)
         performance_data = performance.get_performance()
+        print('PERFORMANC EDATA')
+        print(performance_data)
         fund.performance_status = performance_data['performance']['pivots']['performance']['status']
 
         # Calcualte Liquidity metrics

@@ -102,10 +102,14 @@ class GetRiskDataTests(APITestCase):
 
         new_db = self.mongo_client.test_db
         collection = new_db.test_collection
-
+        print('RESPONSE 33333333333333333')
         try:
+            print('RESPONSE 4444444444444444444444444')
             url = reverse('risk:risk_run' ,args=[201, 'USD'])
+            print('RESPONSE 222222222222222222222')
             response = self.client.get(url, format='json')
+            print('RESPONSE !!!!!!!!!!!!!!!')
+            print(response)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
         finally:
             print('HELLO DOT?')

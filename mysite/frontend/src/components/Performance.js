@@ -31,6 +31,8 @@ const Performance = () => {
     if (!data['performance']) return <div>Loading...</div>  
 
     const newData = data
+    console.log('performance!!!!!!!!')
+    console.log(data)
 
     const keys = Object.keys(data['performance']['fund_history']["0"])
     const bar = [<Bar dataKey="perc_contrib" fill="#8884d8" barSize={20} rowHeight={30}/>]   
