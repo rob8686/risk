@@ -229,22 +229,54 @@ class Performance:
         for ticker in self.positions:
             percent_aum = self.positions[ticker][1]
             weighted_return_df[ticker] = self.percent_return_df[ticker] * percent_aum 
+            #weighted_return_df.reset_index(inplace=True)
+            #weighted_return_df = weighted_return_df.reset_index(drop=True)
+            #weighted_return_df['fund_return2'] = weighted_return_df.sum(axis=1,numeric_only=True) 
+            #weighted_return_df.to_csv('HIST_TEST.csv')
+            print()
+            print('weighted_return_df')
+            print(weighted_return_df)
+            #print(weighted_return_df.reset_index())
+            #print(weighted_return_df[['MSFT','fund_return']])
+            print(weighted_return_df.columns)
+            print()
+            print(weighted_return_df.sum(axis=0))
+            print()
+            print(weighted_return_df.sum(axis=1))
+            #data.iloc[1: , :]
+            print() 
             value = 100 * percent_aum
             remaining_percent = remaining_percent - value
+            #print()
+            #print('remaining_percent')
+            #print(remaining_percent)
             ticker_result_list = [value]
             for percent_return in self.percent_return_df[ticker][1:]:
                 value = value * (1 + percent_return)
                 ticker_result_list.append(value)
+                #print('ticker_result_list')
+                #print(ticker_result_list)
             result_list.append(ticker_result_list)
+        
+        weighted_return_df['fund_return2'] = weighted_return_df.sum(axis=1,numeric_only=True) 
+        weighted_return_df.to_csv('HIST_TEST.csv')
+
+        if remaining_percent < 0:
+            pass
         
         # Sum the weighted return for each position to set the fund time series  
         sum_list = [sum(row) + remaining_percent for row in zip(*result_list)]
+        sum_list_2 = [sum(row) for row in zip(*result_list)]
+        #print('sum_list')
+        #print(sum_list)
+        #print()
         # Rebased the benchmark series starting at 100
         benchmark_base = self.benchmark_data[0]
         rebased_benchmark = self.benchmark_data / benchmark_base * 100
         weighted_return_df['fund_history'] = sum_list
+        weighted_return_df['TEST2'] = sum_list_2
         weighted_return_df['benchamrk_history'] = rebased_benchmark
-
+        #weighted_return_df.to_csv('HIST_TEST.csv')
         performance_dict = {'performance':{}}
         performance_dict['performance']['fund_history'] = weighted_return_df[['fund_history','benchamrk_history']].reset_index().to_dict('records')
 

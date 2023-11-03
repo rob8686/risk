@@ -43,7 +43,7 @@ class PositionWritePermission(BasePermission):
 class FundViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     authentication_classes = [JWTAuthentication]
-    queryset =Fund.objects.all()
+    queryset = Fund.objects.all()
     serializer_class = FundSerializer
 
 class PositionViewSet(viewsets.ModelViewSet):
