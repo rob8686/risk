@@ -258,7 +258,19 @@ class Performance:
                 #print(ticker_result_list)
             result_list.append(ticker_result_list)
         
-        weighted_return_df['fund_return2'] = weighted_return_df.sum(axis=1,numeric_only=True) 
+        weighted_return_df['fund_return3'] = weighted_return_df.sum(axis=1,numeric_only=True) 
+        weighted_return_df['fund_history'] = 100
+        hist_col_index = weighted_return_df.columns.get_loc('fund_history')
+        return_col_index = weighted_return_df.columns.get_loc('fund_return3')
+ 
+        for index in range(1, len(weighted_return_df)):
+        #for index in weighted_return_df.index:
+            print('index')
+            print(index)
+            #weighted_return_df.iloc[index, 'fund_history'] = weighted_return_df.iloc[i-1, 'fund_history'] * (1 + weighted_return_df.iloc[i, 'fund_return3'])
+        #weighted_return_df['fund_history'] = weighted_return_df['fund_history'].shift(1) * weighted_return_df['fund_return3'] 
+            weighted_return_df.iloc[index, hist_col_index] = weighted_return_df.iloc[index-1, hist_col_index] * (1 + weighted_return_df.iloc[index, return_col_index]) 
+
         weighted_return_df.to_csv('HIST_TEST.csv')
 
         if remaining_percent < 0:
