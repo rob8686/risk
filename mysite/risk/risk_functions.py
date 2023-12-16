@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 import time
+from .models import PerformanceHistory, PerformancePivots
 
 class RefreshPortfolio:
     def __init__(self, yf_data, positions):
@@ -169,19 +170,21 @@ class Liquidity:
         return [days_to_liquidate,combined_bucket_dict,cumulative_dict,days_to_liquidate]
      
 class Performance:
-    def __init__(self, fx_converted_df, position_info_dict, benchmark):
+    def __init__(self, fx_converted_df, position_info_dict, fund):
         self.positions = position_info_dict
         self.yf_data = fx_converted_df
         self.percent_return_df = self.yf_data.pct_change()
-        self.benchmark = benchmark
-        self.benchmark_data = self.yf_data[benchmark]
-        self.benchmark_return = self.percent_return_df[benchmark]
+        self.fund = fund
+        self.benchmark = self.fund.benchmark
+        self.benchmark_data = self.yf_data[self.benchmark]
+        self.benchmark_return = self.percent_return_df[self.benchmark]
+        self.hist_data_series = self.calc_hist_data_series()
 
 
     def get_performance(self):
 
         performance_dict = {'performance':{}}
-        weighted_returns = self.calc_weighted_returns()
+        weighted_returns = self.hist_data_series
         historical_data = weighted_returns[['fund_history','benchamrk_history']].reset_index().to_dict('records')
         fund_std = weighted_returns['fund_history'].pct_change().std() * math.sqrt(260)
         benchmark_std = self.benchmark_return.std() * math.sqrt(260)
@@ -198,7 +201,8 @@ class Performance:
         return_dict['status'] = self.calc_status(return_dict)
         print('performance_dict2222222222!!!!!!!!')
         print(performance_dict)
-        print()
+        print(weighted_returns)
+        print(self.calc_performance_statistics())
         return performance_dict
 
     def calc_status(self, return_dict):
@@ -218,81 +222,53 @@ class Performance:
                 return 'fail'
     
 
-    def calc_weighted_returns(self):
+    def calc_hist_data_series(self):
         # Calcualte the fund and benchmark time series with a base value of 100
-
         weighted_return_df = pd.DataFrame()
-        remaining_percent = 100 # as funds can have less than 100% invested
-        result_list = []
 
         # Calcualte weighted return for each position in the fund
         for ticker in self.positions:
             percent_aum = self.positions[ticker][1]
             weighted_return_df[ticker] = self.percent_return_df[ticker] * percent_aum 
-            #weighted_return_df.reset_index(inplace=True)
-            #weighted_return_df = weighted_return_df.reset_index(drop=True)
-            #weighted_return_df['fund_return2'] = weighted_return_df.sum(axis=1,numeric_only=True) 
-            #weighted_return_df.to_csv('HIST_TEST.csv')
-            print()
-            print('weighted_return_df')
-            print(weighted_return_df)
-            #print(weighted_return_df.reset_index())
-            #print(weighted_return_df[['MSFT','fund_return']])
-            print(weighted_return_df.columns)
-            print()
-            print(weighted_return_df.sum(axis=0))
-            print()
-            print(weighted_return_df.sum(axis=1))
-            #data.iloc[1: , :]
-            print() 
-            value = 100 * percent_aum
-            remaining_percent = remaining_percent - value
-            #print()
-            #print('remaining_percent')
-            #print(remaining_percent)
-            ticker_result_list = [value]
-            for percent_return in self.percent_return_df[ticker][1:]:
-                value = value * (1 + percent_return)
-                ticker_result_list.append(value)
-                #print('ticker_result_list')
-                #print(ticker_result_list)
-            result_list.append(ticker_result_list)
-        
-        weighted_return_df['fund_return3'] = weighted_return_df.sum(axis=1,numeric_only=True) 
+
+        weighted_return_df['fund_return'] = weighted_return_df.sum(axis=1,numeric_only=True) 
         weighted_return_df['fund_history'] = 100
         hist_col_index = weighted_return_df.columns.get_loc('fund_history')
-        return_col_index = weighted_return_df.columns.get_loc('fund_return3')
+        return_col_index = weighted_return_df.columns.get_loc('fund_return')
  
         for index in range(1, len(weighted_return_df)):
-        #for index in weighted_return_df.index:
-            print('index')
-            print(index)
-            #weighted_return_df.iloc[index, 'fund_history'] = weighted_return_df.iloc[i-1, 'fund_history'] * (1 + weighted_return_df.iloc[i, 'fund_return3'])
-        #weighted_return_df['fund_history'] = weighted_return_df['fund_history'].shift(1) * weighted_return_df['fund_return3'] 
             weighted_return_df.iloc[index, hist_col_index] = weighted_return_df.iloc[index-1, hist_col_index] * (1 + weighted_return_df.iloc[index, return_col_index]) 
 
-        weighted_return_df.to_csv('HIST_TEST.csv')
-
-        if remaining_percent < 0:
-            pass
-        
-        # Sum the weighted return for each position to set the fund time series  
-        sum_list = [sum(row) + remaining_percent for row in zip(*result_list)]
-        sum_list_2 = [sum(row) for row in zip(*result_list)]
-        #print('sum_list')
-        #print(sum_list)
-        #print()
-        # Rebased the benchmark series starting at 100
         benchmark_base = self.benchmark_data[0]
         rebased_benchmark = self.benchmark_data / benchmark_base * 100
-        weighted_return_df['fund_history'] = sum_list
-        weighted_return_df['TEST2'] = sum_list_2
         weighted_return_df['benchamrk_history'] = rebased_benchmark
-        #weighted_return_df.to_csv('HIST_TEST.csv')
-        performance_dict = {'performance':{}}
-        performance_dict['performance']['fund_history'] = weighted_return_df[['fund_history','benchamrk_history']].reset_index().to_dict('records')
+        # Delete test?
+        test_weighted_return_df = weighted_return_df[['fund_history','benchamrk_history']].reset_index()
+        test_weighted_return_df.rename(columns={"Date": "date"}, inplace=True)
+        test_weighted_return_df['as_of_date'] = '2023-12-08'
+        test_weighted_return_df['fund'] = self.fund
+        test_weighted_return_dict = test_weighted_return_df.to_dict('records')
+        performance_history_objs = [PerformanceHistory(**data) for data in test_weighted_return_dict]
+        PerformanceHistory.objects.all().delete()
+        PerformanceHistory.objects.bulk_create(performance_history_objs)
+        return weighted_return_df[['fund_history','benchamrk_history']]
 
-        return weighted_return_df
+    def calc_performance_statistics(self):
+        hist_series = self.hist_data_series
+        percent_change_df = hist_series.iloc[[0, -1]].pct_change()
+
+        fund_return = percent_change_df.iloc[-1,0]
+        benchmark_return = percent_change_df.iloc[-1,1]     
+        fund_std = hist_series['fund_history'].pct_change().std() * math.sqrt(260)
+        benchmark_std = hist_series['benchamrk_history'].pct_change().std() * math.sqrt(260)
+        fund_sharpe = fund_return / fund_std 
+        benchmark_sharpe = benchmark_return / benchmark_std
+
+        fund_dict = {'return': fund_return, 'std': fund_std, 'sharpe': fund_sharpe}
+        benchmark_dict = {'return': benchmark_return, 'std': benchmark_std, 'sharpe': benchmark_sharpe}
+
+        print()
+
 
     def calc_period_return(self):
 
@@ -309,6 +285,32 @@ class Performance:
 
         sector_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['sector'], aggfunc=np.sum)
         currency_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['currency'], aggfunc=np.sum)
+
+        test_sector_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['sector'], aggfunc=np.sum).reset_index().rename(columns={"sector": "label"})
+        test_sector_pivot['fund'] = self.fund
+        test_sector_pivot['as_of_date'] = '2023-12-08'
+        test_sector_pivot['type'] = 'sector'
+
+        test_currency_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['currency'], aggfunc=np.sum).reset_index().rename(columns={"currency": "label"})
+        test_currency_pivot['fund'] = self.fund
+        test_currency_pivot['as_of_date'] = '2023-12-08'
+        test_currency_pivot['type'] = 'currency'
+
+        print()
+        print('PIVOTSSSSSSSSSSS')
+
+        print(test_sector_pivot)
+        print(test_sector_pivot.to_dict('records'))
+        print()
+        print(test_currency_pivot)
+        print(test_currency_pivot.to_dict('records'))
+
+        print(test_sector_pivot.to_dict('records') + (test_currency_pivot.to_dict('records')))
+        PerformancePivots.objects.all().delete()
+        performance_pivot_list = test_sector_pivot.to_dict('records') + (test_currency_pivot.to_dict('records'))
+        performance_pivot_objs = [PerformancePivots(**data) for data in performance_pivot_list]
+        PerformancePivots.objects.bulk_create(performance_pivot_objs)
+        
 
         pivot_dict = {
             'performance': {'fund':{'return': combined_df.sum().to_dict()['perc_contrib']},

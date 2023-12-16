@@ -2,12 +2,12 @@ from django.shortcuts import render, redirect
 import yfinance as yf
 import pandas as pd
 from .forms import FundForm, PositionForm, SecurityForm
-from .models import Security, Position, Fund
+from .models import Security, Position, Fund, PerformanceHistory, PerformancePivots
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import viewsets, status
-from .serializers import FundSerializer,PositionSerializer, CreatePositionSerializer
+from .serializers import FundSerializer,PositionSerializer, CreatePositionSerializer, PerformanceHistorySerializer, PerformancePivotSerializer
 from .risk_functions import RefreshPortfolio, GetFx, Performance, Liquidity
 from .market_risk import var, Var
 from datetime import datetime
@@ -22,6 +22,8 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 #from urllib.error import HTTPError
 from requests.exceptions import HTTPError
 from django.db.models import Avg, Count, Sum
+from .yf_data import YFinaceData
+
 client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
 
 class PositionWritePermission(BasePermission):
@@ -92,16 +94,73 @@ class PositionViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
- 
+class PerformanceHistoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    authentication_classes = [JWTAuthentication]
+    queryset = PerformanceHistory.objects.all()
+    serializer_class = PerformanceHistorySerializer
+
+    def get_queryset(self):
+        fund = self.request.GET.get('fund')
+        queryset = PerformanceHistory.objects.filter(fund__pk=fund)
+        return queryset
+    
+
+    def list(self, requests):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        performance_stats = PerformanceHistory.objects.performance_stats()
+        response_data = {
+            'data': serializer.data,
+            'performance_stats': performance_stats
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+    
+class PerformancePivotViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    authentication_classes = [JWTAuthentication]
+    queryset = PerformancePivots.objects.all()
+    serializer_class = PerformancePivotSerializer
+    
+    def get_queryset(self):
+        fund = self.request.GET.get('fund')
+        queryset = PerformancePivots.objects.filter(fund__pk=fund)
+        return queryset
+    
+
+class PerformanceAPIView(APIView):
+    def get(self, request):
+        fund = self.request.GET.get('fund')
+        performance_history = PerformanceHistory.objects.filter(fund__pk=fund)
+        performance_pivots = PerformancePivots.objects.filter(fund__pk=fund)
+
+        performance_history_data = PerformanceHistorySerializer(performance_history, many=True).data
+        print(performance_history_data)
+        performance_pivots_data = PerformancePivotSerializer(performance_pivots, many=True).data
+        print(performance_pivots_data)
+        performance_stats = performance_history.performance_stats()
+        print(performance_stats)
+
+        return Response({'performance_history': performance_history},status=status.HTTP_200_OK)
+    
+
+
+
 class GetRiskData(APIView):
 
     def get(self, request, fund_id, fund_currency,format='json'):
 
-        positions = Position.objects.filter(fund=fund_id).select_related('security') #need this?
+        positions = Position.objects.filter(fund=fund_id)
         fund = Fund.objects.filter(id=fund_id)[0]
         benchmark = fund.benchmark
         ticker_currency_list = list(positions.values_list("security__ticker","security__currency"))
         benchmark_currency = {'SPY':'USD'}
+        print('')
+        print('ticker_currency_list')
+        print(ticker_currency_list)
+        print(positions.values_list("security__ticker","security__currency"))
+        print()
+        print(positions.values("security__ticker","security__currency"))
         
         # get the FX rate df which contains the rates for each unique currency   
         unique_currency_set = set(currency[1] for currency in ticker_currency_list)
@@ -132,7 +191,7 @@ class GetRiskData(APIView):
 
         # multiply the fx rate by the position closing price to get the FX converted closing price 
         for ticker, ccy in ticker_currency_list:
-            combined_df[ticker + '_' + fund_currency] = combined_df[ticker] * combined_df[ccy]
+            #combined_df[ticker + '_' + fund_currency] = combined_df[ticker] * combined_df[ccy]
             fx_converted_df[ticker] = combined_df[ticker] * combined_df[ccy]
         fx_converted_df[benchmark] = combined_df[benchmark] * combined_df[benchmark_currency[benchmark]]
 
@@ -150,7 +209,7 @@ class GetRiskData(APIView):
             position_info_dict[str(position)] = [quantity, percent_aum, sector, currency]
 
         # Calcualte Performance metrics and store in MongoDB    
-        performance = Performance(fx_converted_df, position_info_dict, benchmark)
+        performance = Performance(fx_converted_df, position_info_dict, fund)
         performance_data = performance.get_performance()
         print('PERFORMANC EDATA')
         print(performance_data)
@@ -176,6 +235,15 @@ class GetRiskData(APIView):
         # Stored the calcualted metrics in MongoDB 
         result2 = new_collection.replace_one({'_id':fund_id},{'text':'Update worked AGAIN!!!!!!','liquidity': liquidity_data, 'performance': performance_data,'market_risk':var_data},upsert=True)
         fund.save()
+
+        print('')
+        print('ticker_currency_list')
+        print(ticker_currency_list)
+        print('VALUES_LIST')
+        print(positions.values_list("security__ticker","security__currency"))
+        print()
+        print('VALUES')
+        print(positions.values("security__ticker","security__currency"))
 
         return Response(performance.get_performance(),status=status.HTTP_200_OK)
 
@@ -206,6 +274,15 @@ class GetMarketRisk(APIView):
         collection = db.test_collection
         document = collection.find_one({'_id':fund_id})
         return Response(document["market_risk"],status=status.HTTP_200_OK)
+    
+class TestView(APIView):
+    def get(self, request):
+        fund_id = 1
+        run_risk = YFinaceData(fund_id)
+        #run_risk.fx_convert()
+        #run_risk.get_position_info()
+        run_risk.run_risk()
+        return Response('HELLO',status=status.HTTP_200_OK)
 
 
 
