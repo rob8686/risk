@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 import yfinance as yf
 import pandas as pd
 from .forms import FundForm, PositionForm, SecurityForm
-from .models import Security, Position, Fund, PerformanceHistory, PerformancePivots
+from .models import Security, Position, Fund, PerformanceHistory, PerformancePivots, LiquditiyResult, MarketRiskStatistics, MarketRiskCorrelation, HistogramBins, HistVarSeries
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
@@ -131,17 +131,52 @@ class PerformancePivotViewSet(viewsets.ModelViewSet):
 class PerformanceAPIView(APIView):
     def get(self, request):
         fund = self.request.GET.get('fund')
-        performance_history = PerformanceHistory.objects.filter(fund__pk=fund)
-        performance_pivots = PerformancePivots.objects.filter(fund__pk=fund)
+        performance_history = PerformanceHistory.objects.filter(fund__pk=fund).values('date', 'fund_history', 'benchamrk_history')
+        performance_pivots = PerformancePivots.objects.filter(fund__pk=fund).values('type', 'label', 'perc_contrib')
+        performance_stats = PerformanceHistory.objects.performance_stats(fund)
+        return Response({'performance_pivots': performance_pivots,'performance_history':performance_history,'performance_stats':performance_stats},status=status.HTTP_200_OK)
+    
+class LiquidityResultAPIView(APIView):
+    def get(self, request):
+        fund = self.request.GET.get('fund')
+        Liquidity_stats = LiquditiyResult.objects.liquidity_stats(fund)
+        #LiquidityResult = LiquditiyResult.objects.filter(fund__pk=fund).values('date', 'fund_history', 'benchamrk_history')
+        #performance_pivots = PerformancePivots.objects.filter(fund__pk=fund).values('type', 'label', 'perc_contrib')
+        #performance_stats = PerformanceHistory.objects.performance_stats(fund)
+        return Response({'Liquidity_stats':Liquidity_stats},status=status.HTTP_200_OK)
+    
+class MarketRiskResultAPIView(APIView):
+    def get(self, request):
+        fund = self.request.GET.get('fund')
+        Liquidity_stats = LiquditiyResult.objects.liquidity_stats(fund)
+        #LiquidityResult = LiquditiyResult.objects.filter(fund__pk=fund).values('date', 'fund_history', 'benchamrk_history')
+        #performance_pivots = PerformancePivots.objects.filter(fund__pk=fund).values('type', 'label', 'perc_contrib')
+        #performance_stats = PerformanceHistory.objects.performance_stats(fund)
+        return Response({'Liquidity_stats':Liquidity_stats},status=status.HTTP_200_OK)
+    
 
-        performance_history_data = PerformanceHistorySerializer(performance_history, many=True).data
-        print(performance_history_data)
-        performance_pivots_data = PerformancePivotSerializer(performance_pivots, many=True).data
-        print(performance_pivots_data)
-        performance_stats = performance_history.performance_stats()
-        print(performance_stats)
+    
+class LiquidityResultViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    authentication_classes = [JWTAuthentication]
+    queryset = LiquditiyResult.objects.all()
+    serializer_class = PerformanceHistorySerializer
 
-        return Response({'performance_history': performance_history},status=status.HTTP_200_OK)
+    def get_queryset(self):
+        fund = self.request.GET.get('fund')
+        queryset = LiquditiyResult.objects.filter(fund__pk=fund)
+        return queryset
+    
+
+    def list(self, requests):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        performance_stats = PerformanceHistory.objects.performance_stats()
+        response_data = {
+            'data': serializer.data,
+            'performance_stats': performance_stats
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
     
 
 
@@ -217,7 +252,7 @@ class GetRiskData(APIView):
 
         # Calcualte Liquidity metrics
         data.drop(columns=[benchmark],inplace=True, level=1)
-        liquidity2 = Liquidity(data,position_info_dict, fund.liquidity_limit)
+        liquidity2 = Liquidity(data,position_info_dict, fund)
         liquidity_data = liquidity2.get_liquidity()
         fund.liquidity_status = liquidity_data['status']
         print()
@@ -229,7 +264,7 @@ class GetRiskData(APIView):
         client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
         new_db = client.test_db
         new_collection = new_db.test_collection
-        var_result = Var(fx_converted_df.drop(benchmark,axis=1), position_info_dict, new_collection)
+        var_result = Var(fx_converted_df.drop(benchmark,axis=1), position_info_dict, new_collection, fund)
         var_data = var_result.get_var()
 
         # Stored the calcualted metrics in MongoDB 

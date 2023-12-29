@@ -6,10 +6,11 @@ import pymongo
 import datetime
 import json
 import datetime as dt
+from .models import HistVarSeries, MarketRiskStatistics, MarketRiskCorrelation, HistogramBins
 
 class Var():
 
-    def __init__(self, fx_converted_df, yf_dict, collection):
+    def __init__(self, fx_converted_df, yf_dict, collection, fund):
         self.collection = collection
         self.fx_converted_df = fx_converted_df
         #self.perc_return_df = self.combined_df.pct_change().dropna().reset_index()
@@ -20,6 +21,7 @@ class Var():
         self.combined_df = pd.merge(self.fx_converted_df,self.risk_factor_df, left_index=True, right_index=True).pct_change().dropna().reset_index()
         self.weights = self.position_weights()
         self.tickers = self.fx_converted_df.columns
+        self.fund = fund
 
     def get_var(self):
         result = {}
@@ -29,6 +31,7 @@ class Var():
         #print(self.linear_model(x))
         #print('FACTOR222222')
         #print(self.factor_var2())
+        MarketRiskStatistics.objects.all().delete()
         result['parametric_var'] = self.parametric_var()
         result['factor_var'] = self.factor_var2()
         result['tickers'] = list(self.tickers) 
@@ -38,6 +41,9 @@ class Var():
         return result
 
     def position_weights(self):
+        print('SELF > YF DICT')
+        print(self.yf_dict)
+        print(self.fx_converted_df)
         weights = []
         for col in self.fx_converted_df.columns:
             weight = self.yf_dict[col][1]
@@ -53,10 +59,24 @@ class Var():
 
         def create_dict(frequency, result):
             return {'frequency': frequency,'return':result}
+        
+
+        def create_dict_NEW(frequency, result):
+            return {'as_of_date':'2023-12-08', 'count': frequency,'bin':result, 'fund':self.fund}
 
         combined = list(map(create_dict, hist.tolist(), bin_edges.tolist()))
+        combined_NEW = list(map(create_dict_NEW, hist.tolist(), bin_edges.tolist()))
+
+        HistogramBins.objects.all().delete()
+        histogram_objs = [HistogramBins(**data) for data in combined_NEW]
+        HistogramBins.objects.bulk_create(histogram_objs)
+        print()
+        print('hist_series hist_series')
+        print(list(combined))
+        print()
         return list(combined)
-    
+
+
     def parametric_var(self):
         returns = self.combined_df.drop(self.factors, axis=1).drop('Date',axis=1).to_numpy()
         weights = self.position_weights()
@@ -75,6 +95,24 @@ class Var():
         #print('var_1_day',var_1_day)
         #print(corr)
         #print()
+
+        MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='parametric_var',value=var_1_day, fund=self.fund )
+        print('CORRELASTIONS!!!!!!!! CORREL')
+        print(corr.tolist())
+        print()
+        print(corr)
+        print()
+        print(list(self.tickers))
+        print()
+        
+        correl_list =[]
+        for index, ticker in enumerate(self.tickers):
+            for correl_index, correl_ticker in enumerate(self.tickers):
+                correl_list.append({'as_of_date':'2023-12-08','ticker': ticker,'to': correl_ticker, 'value': corr.tolist()[index][correl_index],'fund':self.fund})
+                
+        market_risk_correl_objs = [MarketRiskCorrelation(**data) for data in correl_list]
+        MarketRiskCorrelation.objects.bulk_create(market_risk_correl_objs)
+
         return {'var_1_day': var_1_day,'correlation':corr.tolist()}
     
     def linear_model(self, x):
@@ -103,7 +141,7 @@ class Var():
             result[ticker] = b
             result_array[idx] = b
             #print()
-
+        
         return result_array
     
     def factor_var2(self):
@@ -127,7 +165,11 @@ class Var():
         hist_series = result.sum(axis=1)
         combined_result[:,-1] = hist_series
         combined_result[:,0:-1] = result
-        sorted_combined_result = combined_result[combined_result[:, 1].argsort()]
+        sorted_combined_result = combined_result[combined_result[:, -1].argsort()]
+        print('INDIVIDUAL VAR')
+        individual_var = np.sort(combined_result,axis=0)[ci_99]
+        print(individual_var)
+        print()
 
         sorted_hist_series = np.sort(hist_series)
         var_1d = sorted_combined_result[ci_99]
@@ -138,7 +180,25 @@ class Var():
             row_dict['name'] = dates[idx]
             row_dict['PL'] = pl
             chart_list.append(row_dict)
-             
+
+        chart_list_NEW = []
+        for idx, pl in enumerate(hist_series.tolist()):
+            row_dict = {}
+            row_dict['date'] = dates[idx]
+            row_dict['as_of_date'] = '2023-12-08'
+            row_dict['pl'] = pl
+            row_dict['fund'] = self.fund
+            chart_list_NEW.append(row_dict)
+
+
+        #MarketRiskStatistics.objects.create()
+        
+        HistVarSeries.objects.all().delete()
+        hist_var_series_objs = [HistVarSeries(**data) for data in chart_list_NEW]
+        HistVarSeries.objects.bulk_create(hist_var_series_objs)
+        MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='hist_var_result',value=individual_var[-1], fund=self.fund )
+
+        
         return {'var_1d':var_1d.tolist(), 'individual_var':individual_var.tolist(),'var_history':hist_series.tolist(), 'dates': dates,'chart_list':chart_list}
     
     def stress_tests(self):
@@ -169,14 +229,15 @@ class Var():
         def create_dict(stress_names, stress_result):
             return {'stress': stress_names,'result':stress_result}
 
-        combined_stress = list(map(create_dict, stress_names, stress_result))
-        
-        #combined_stress = dict(zip(stress_names, stress_result))
+        def create_dict_NEW(stress_names, stress_result):
+            return {'as_of_date':'2023-12-08','catagory':'stress_test','type': stress_names,'value':stress_result,'fund':self.fund}
 
-        #print(result)
-        #print(stress_result)
-        #print(combined_stress)
-        print()
+        combined_stress = list(map(create_dict, stress_names, stress_result))
+
+        combined_stress_new = list(map(create_dict_NEW, stress_names, stress_result))
+        market_risk_stat_objs = [MarketRiskStatistics(**data) for data in combined_stress_new]
+        MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
+
         return {'stress_tests':combined_stress}
         
 

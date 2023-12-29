@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Fund, Position, Security, PerformanceHistory, PerformancePivots
+from .models import Fund, Position, Security, PerformanceHistory, PerformancePivots, LiquditiyResult
 import yfinance as yf
 import datetime
 import math
@@ -84,9 +84,18 @@ class CreatePositionSerializer(serializers.ModelSerializer):
 class PerformanceHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PerformanceHistory
-        fields = '__all__'
+        fields = ['date', 'fund_history', 'benchamrk_history']
 
 class PerformancePivotSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerformancePivots
-        fields = '__all__'
+        fields = ['type', 'label', 'perc_contrib']
+
+class LiquditiyResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LiquditiyResult
+        fields = ['day_1','day_7','day_30','day_90','day_180','day_365','day_366','type']
+
+
+
+

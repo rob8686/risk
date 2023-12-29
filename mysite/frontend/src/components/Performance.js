@@ -19,7 +19,7 @@ const Performance = () => {
     const getData = async () => {
         const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/performance/${fundNum}`)    //+fundNum)
         setData(riskData)
-      }  
+      }
       
     const fetchData = async (url, requestOptions = '') => {
       const response = (requestOptions === '') ?  await fetch(url) : await fetch(url,requestOptions);

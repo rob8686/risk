@@ -10,4 +10,5 @@ urlpatterns = [
     path('api/market_risk/<int:fund_id>', views.GetMarketRisk.as_view(),name='market_risk'),
     path('api/test_view/', views.TestView.as_view(),name='test_view'),
     path('api/performance_data/', views.PerformanceAPIView.as_view(),name='test_view'),
+    path('api/liquidity_data/', views.LiquidityResultAPIView.as_view(),name='test_view'),
 ]

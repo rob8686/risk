@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 import time
-from .models import PerformanceHistory, PerformancePivots
+from .models import PerformanceHistory, PerformancePivots, LiquditiyResult
 
 class RefreshPortfolio:
     def __init__(self, yf_data, positions):
@@ -76,10 +76,11 @@ class GetFx:
         return df
 
 class Liquidity:
-    def __init__(self, yf_data, position_info, liq_limit):
+    def __init__(self, yf_data, position_info, fund):
         self.positions = position_info
         self.average_volumne = yf_data['Volume'].reset_index().mean().to_dict()
-        self.liq_limit = liq_limit
+        self.liq_limit = fund.liquidity_limit
+        self.fund = fund
 
     def get_liquidity(self):
         
@@ -87,6 +88,7 @@ class Liquidity:
         cumulative_list, liquidity_result_list = [], []
 
         # calcualte liquidity metrics under normal market conditions and stressed condiitons (50% and 30% of ADV)
+        LiquditiyResult.objects.all().delete() 
         for liquidity_stress_percent in [['100%',1],['50%',.5],['30%',.3]]:
             result = self.calc_liq_stats(liquidity_stress_percent[1])
             days_to_liquidate_dict[liquidity_stress_percent[0]] = result[0]
@@ -124,10 +126,14 @@ class Liquidity:
             return 'pass' 
 
     def calc_liq_stats(self,liquidity_stress_percent):
-        #Calcualted the amount disposed in each time bucket and the cumulative amount disposed per bucket  
+        #Calcualted the amount disposed in each time bucket and the cumulative amount disposed per bucket
         cumulative_dict = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
+        cumulative_dict_2 = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
         combined_bucket_dict = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
+        combined_bucket_dict_2 = {'day_1':0, 'day_7':0, 'day_30':0, 'day_90':0, 'day_180':0, 'day_365':0, 'day_366':0}
         rows = []
+        rows2 = []
+        
 
         # Loop through each position in the fund and add the amount disposed of each day to the correct dict 
         for ticker in self.average_volumne:
@@ -142,6 +148,9 @@ class Liquidity:
 
             bucket_list = ['1', '7', '30', '90', '180', '365', '366']
             bucket_dict = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
+            bucket_list_2 = ['day_1', 'day_7', 'day_30', 'day_90', 'day_180', 'day_365', 'day_366']
+            bucket_list_2 = ['1', '7', '30', '90', '180', '365', '366']
+            bucket_dict_2 = {'day_1':0, 'day_7':0, 'day_30':0, 'day_90':0, 'day_180':0, 'day_365':0, 'day_366':0,'as_of_date':'2023-12-08','type':ticker, 'stress':str(int(liquidity_stress_percent*100))+'%','fund':self.fund}
 
             for day in range(1,days_to_liquidate+1):
                 for num, days in enumerate(bucket_list,start=1):
@@ -160,11 +169,33 @@ class Liquidity:
                             bucket_dict[days] = bucket_dict[days] + aum_disposed
                             combined_bucket_dict[days] = combined_bucket_dict[days] + aum_disposed
 
-   
+            for day in range(1,days_to_liquidate+1):
+                for num, days in enumerate(list(bucket_dict_2.keys())[:-4],start=1):
+                    #days = days.split('_')[1]
+                    int_days = days.split('_')[1]
+                    # a different amonunt can be dispsoed of if it is the last day
+                    if day == days_to_liquidate:
+                        aum_disposed = qunatity_final_day / quantity * perc_aum
+                    else:
+                        aum_disposed = quantity_disposed_per_day / quantity * perc_aum
+
+                    # if the day is less than the time bucket add the amount dispiosed to the cumulative dict
+                    # only add to the individual bucket dict if the day is less than the current time bucket and greater than the previous time bucket    
+  
+                    if day <= int(int_days):
+                        cumulative_dict_2[int_days] = cumulative_dict_2[int_days] + aum_disposed
+                        if day  > int(bucket_list_2[num - 2]) or int_days == '1': 
+                            bucket_dict_2[days] = bucket_dict_2[days] + aum_disposed
+                            combined_bucket_dict_2[days] = combined_bucket_dict_2[days] + aum_disposed
+                            
+            LiquditiyResult.objects.create(**bucket_dict_2)
+  
             bucket_dict['type'] = ticker
             rows.append(bucket_dict)
+            rows2.append(bucket_dict_2)
 
         combined_bucket_dict['subRows'] = rows
+        combined_bucket_dict_2['subRows'] = rows2
         combined_bucket_dict['type'] = str(int(liquidity_stress_percent *100)) + '%'
 
         return [days_to_liquidate,combined_bucket_dict,cumulative_dict,days_to_liquidate]
@@ -199,10 +230,6 @@ class Performance:
         return_dict['fund']['sharpe'] = return_dict['fund']['return'] / fund_std
         return_dict['benchmark']['sharpe'] = return_dict['benchmark']['return'] / benchmark_std
         return_dict['status'] = self.calc_status(return_dict)
-        print('performance_dict2222222222!!!!!!!!')
-        print(performance_dict)
-        print(weighted_returns)
-        print(self.calc_performance_statistics())
         return performance_dict
 
     def calc_status(self, return_dict):
@@ -296,16 +323,6 @@ class Performance:
         test_currency_pivot['as_of_date'] = '2023-12-08'
         test_currency_pivot['type'] = 'currency'
 
-        print()
-        print('PIVOTSSSSSSSSSSS')
-
-        print(test_sector_pivot)
-        print(test_sector_pivot.to_dict('records'))
-        print()
-        print(test_currency_pivot)
-        print(test_currency_pivot.to_dict('records'))
-
-        print(test_sector_pivot.to_dict('records') + (test_currency_pivot.to_dict('records')))
         PerformancePivots.objects.all().delete()
         performance_pivot_list = test_sector_pivot.to_dict('records') + (test_currency_pivot.to_dict('records'))
         performance_pivot_objs = [PerformancePivots(**data) for data in performance_pivot_list]

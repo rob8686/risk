@@ -1,22 +1,16 @@
 from .models import Security, Position, Fund, PerformanceHistory
 from .risk_functions import GetFx, Liquidity,Performance
+from .market_risk import Var
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
-from django.db.models import Sum
+from django.db.models import Sum#
+from pymongo import MongoClient
 
 class YFinaceData():
     def __init__(self, fund_id):
         self.fund_id = fund_id
-        print(self.fund_id)
         self.fund = Fund.objects.filter(id=self.fund_id)[0]
-        print()
-        print('MODEL METHOD TEST!!!!!!! !!!')
-        #print(self.fund.performance_history('2023-12-08'))
-        print(PerformanceHistory.objects.performance_stats())
-        print()
-        #print(self.fund.performance_stats('2023-12-08'))
-        print()
         self.positions = Position.objects.filter(fund=self.fund_id)
         self.benchmark = self.fund.benchmark
         self.fund_ccy = self.fund.currency
@@ -27,15 +21,19 @@ class YFinaceData():
 
     def run_risk(self):
         ## data.drop(columns=[benchmark],inplace=True, level=1)
-        #liquidity_result = Liquidity(self.yf_data,self.position_info, self.fund.liquidity_limit).get_liquidity()
         #print(liquidity_result)
 
         fx_converted_df = self.fx_convert()
 
         performance_result = Performance(fx_converted_df, self.position_info, self.fund).get_performance()
-        print(performance_result)
-        #self.fund.performance_status = performance_result['performance']['pivots']['performance']['status']
+        self.yf_data.drop(columns=[self.benchmark],inplace=True, level=1)
+        liquidity_result = Liquidity(self.yf_data,self.position_info, self.fund).get_liquidity()
 
+        client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
+        new_db = client.test_db
+        new_collection = new_db.test_collection
+        var_result = Var(fx_converted_df.drop(columns=[self.benchmark]), self.position_info, new_collection, self.fund)
+        var_data = var_result.get_var()
 
 
     def get_positions_data(self):
@@ -83,7 +81,6 @@ class YFinaceData():
             quantity = self.positions.filter(security__ticker=position).aggregate(Sum("quantity"))['quantity__sum']
             percent_aum = self.positions.filter(security__ticker=position).aggregate(Sum("percent_aum"))['percent_aum__sum']
             position_info_dict[str(position)] = [quantity, percent_aum, sector, currency]
-        print(position_info_dict)
         return position_info_dict
 
     
