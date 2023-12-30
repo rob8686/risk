@@ -129,32 +129,37 @@ class PerformancePivotViewSet(viewsets.ModelViewSet):
     
 
 class PerformanceAPIView(APIView):
-    def get(self, request):
-        fund = self.request.GET.get('fund')
-        performance_history = PerformanceHistory.objects.filter(fund__pk=fund).values('date', 'fund_history', 'benchamrk_history')
-        performance_pivots = PerformancePivots.objects.filter(fund__pk=fund).values('type', 'label', 'perc_contrib')
-        performance_stats = PerformanceHistory.objects.performance_stats(fund)
+    def get(self, request, fund_id):
+        performance_history = PerformanceHistory.objects.filter(fund__pk=fund_id).values('date', 'fund_history', 'benchamrk_history')
+        performance_pivots = PerformancePivots.objects.performance_stats(fund_id)
+        performance_stats = PerformanceHistory.objects.performance_stats(fund_id)
+
         return Response({'performance_pivots': performance_pivots,'performance_history':performance_history,'performance_stats':performance_stats},status=status.HTTP_200_OK)
     
 class LiquidityResultAPIView(APIView):
-    def get(self, request):
-        fund = self.request.GET.get('fund')
-        Liquidity_stats = LiquditiyResult.objects.liquidity_stats(fund)
+    def get(self, request, fund_id):
+        Liquidity_stats = LiquditiyResult.objects.liquidity_stats(fund_id)
         #LiquidityResult = LiquditiyResult.objects.filter(fund__pk=fund).values('date', 'fund_history', 'benchamrk_history')
         #performance_pivots = PerformancePivots.objects.filter(fund__pk=fund).values('type', 'label', 'perc_contrib')
         #performance_stats = PerformanceHistory.objects.performance_stats(fund)
         return Response({'Liquidity_stats':Liquidity_stats},status=status.HTTP_200_OK)
     
 class MarketRiskResultAPIView(APIView):
-    def get(self, request):
-        fund = self.request.GET.get('fund')
-        Liquidity_stats = LiquditiyResult.objects.liquidity_stats(fund)
-        #LiquidityResult = LiquditiyResult.objects.filter(fund__pk=fund).values('date', 'fund_history', 'benchamrk_history')
-        #performance_pivots = PerformancePivots.objects.filter(fund__pk=fund).values('type', 'label', 'perc_contrib')
-        #performance_stats = PerformanceHistory.objects.performance_stats(fund)
-        return Response({'Liquidity_stats':Liquidity_stats},status=status.HTTP_200_OK)
-    
+    def get(self, request, fund_id):
+        hist_var_history = HistVarSeries.objects.filter(fund__pk=fund_id).values('date', 'pl')
+        risk_stats = MarketRiskStatistics.objects.filter(fund__pk=fund_id)
+        var_1d_hist = risk_stats.filter(type='hist_var_result')[0].value
+        var_1d_parametric = risk_stats.filter(type='parametric_var')[0].value
+        histogram = HistogramBins.objects.filter(fund__pk=fund_id).values('bin','count')
+        correlation_data = MarketRiskCorrelation.objects.get_correlation(fund_id)
+        tickers, correlation_matrix = correlation_data[0], correlation_data[1]
+        stress_tests = risk_stats.filter(catagory='stress_test').values('type','value')
 
+        return Response({'factor_var': {'historical_data':hist_var_history, 'var_1d':var_1d_hist},
+                         'stress_tests':stress_tests, 
+                         'parametric_var':{'var_1d':var_1d_parametric,'histogram':histogram, 'tickers':tickers,'correlation':correlation_matrix}},
+                         status=status.HTTP_200_OK
+                         )
     
 class LiquidityResultViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]

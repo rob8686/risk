@@ -18,7 +18,7 @@ const MarketRiskAreaChart = (props) => {
         }}
       >
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis type="category"dataKey="return"/>
+        <XAxis type="category"dataKey="bin"/>
         <YAxis />
         <Tooltip />
         <Legend />

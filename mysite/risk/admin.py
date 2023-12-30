@@ -1,7 +1,4 @@
 from django.contrib import admin
-
-# Register your models here.
-
 from .models import Security, Position,Fund, PerformanceHistory, PerformancePivots, LiquditiyResult, HistVarSeries, MarketRiskStatistics, MarketRiskCorrelation, HistogramBins
 
 admin.site.register(Security)

@@ -16,8 +16,8 @@ function Liquidity() {
       }, [])
 
     const getData = async () => {
-        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/liquidity_data/${fundNum}`)
-        setData(riskData['Liquidity_stats'])
+        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/liquidity/${fundNum}`)
+        setData(riskData)
       }  
       
       const fetchData = async (url, requestOptions = '') => {
@@ -55,35 +55,35 @@ function Liquidity() {
         },
             {
               Header: 'Liq %',
-              accessor: 'stress',
+              accessor: 'type',
             },
             {
               Header: '1',
-              accessor: 'day_1',
+              accessor: '1',
             },
             {
               Header: '7',
-              accessor: 'day_7',
+              accessor: '7',
             },
             {
               Header: '30',
-              accessor: 'day_30',
+              accessor: '30',
             },
             {
               Header: '90',
-              accessor: 'day_90',
+              accessor: '90',
             },
             {
               Header: '180',
-              accessor: 'day_180',
+              accessor: '180',
             },
             {
               Header: '365',
-              accessor: 'day_365',
+              accessor: '365',
             },
             {
               Header: '365+',
-              accessor: 'day_366',
+              accessor: '366',
             },
       ]
 
@@ -95,7 +95,6 @@ function Liquidity() {
         <Line type="monotone" dataKey="30" stroke="#ffc658" />
     ]
     console.log('DATA NEW')
-    console.log('NEW V" DATAAAAAAAAAAAAAAAAA')
     console.log(data)
     return (
       <Container>

@@ -17,7 +17,7 @@ const Performance = () => {
       }, [])
 
     const getData = async () => {
-        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/performance_data/${fundNum}`)    //+fundNum)
+        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/performance/${fundNum}`)    //+fundNum)
         setData(riskData)
       }
       
@@ -28,16 +28,16 @@ const Performance = () => {
     }
 
 
-    if (!data['performance_pivots']) return <div>Loading...</div>  
+    if (!data['performance']) return <div>Loading...</div>  
 
     const newData = data
     console.log('performance!!!!!!!!')
     console.log(data)
 
-    const keys = Object.keys(data['performance_history']["0"])
+    const keys = Object.keys(data['performance']['fund_history']["0"])
     const bar = [<Bar dataKey="perc_contrib" fill="#8884d8" barSize={20} rowHeight={30}/>]   
     const headerList=[<th></th>,<th>Fund</th>,<th>Benchmark</th>];
-    const performance = data['performance_stats']
+    const performance = data['performance']['pivots']['performance']
     const itemArray = [['return','Return'], ['std','Volatility'],['sharpe','Sharpe Ratio']]
     
     const lines= [
@@ -59,7 +59,7 @@ const Performance = () => {
       <Container fluid>
         <Row>
           <Col className='content'>
-            <RiskLineChart data={data['performance_history']} lines={lines} dataKey={'date'}/>
+            <RiskLineChart data={data['performance']['fund_history']} lines={lines} dataKey={'Date'}/>
           </Col>
           <Col className='content'>
             <Table responsive size="sm">
@@ -83,11 +83,11 @@ const Performance = () => {
         <Row>
           <Col className='content'>
             <h4>Return Contribution by Currency</h4>
-            <PivotBarChart data={data['performance_pivots']['currency']} dataKey={"label"} bar={bar}/>
+            <PivotBarChart data={data['performance']['pivots']['pivots']['currency']} dataKey={"currency"} bar={bar}/>
           </Col>
           <Col className='content'>
             <h4>Return Contribution by Sector</h4>
-            <PivotBarChart data={data['performance_pivots']['sector']} dataKey={"label"} bar={bar}/>
+            <PivotBarChart data={data['performance']['pivots']['pivots']['sector']} dataKey={"sector"} bar={bar}/>
           </Col>
         </Row>
           <Row>

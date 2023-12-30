@@ -5,7 +5,7 @@ import Table from 'react-bootstrap/Table'
 import MarketRiskBarChart from './MarketRiskBarChart';
 import RiskTable from './RiskTable.js';
 import Container from 'react-bootstrap/Container';
-import Row from 'react-bootstrap/Row'
+import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import SideTable from './SideTable.js';
 import MarketRiskAreaChart from './MarketRiskAreaChart';
@@ -63,7 +63,7 @@ const MarketRisk = () => {
   
   let getData = async ()=> {
 
-    let response = await fetch(`http://127.0.0.1:8000/risk/api/market_risk_data/${fundNum}`, {
+    let response = await fetch(`http://127.0.0.1:8000/risk/api/market_risk/${fundNum}`, {
         method:'GET',
         headers:{
             'Content-Type':'application/json'
@@ -87,18 +87,18 @@ const MarketRisk = () => {
   if (!Object.keys(data).length) return <div>Loading...</div>
 
   const columns = [
-    {Header: 'Date', accessor: 'date'},
-    {Header: 'PL', accessor: 'pl', sortType: 'basic',
+    {Header: 'Date', accessor: 'name'},
+    {Header: 'PL', accessor: 'PL', sortType: 'basic',
     Cell: ({ value }) => (value * 100).toFixed(2) + '%'}
   ]
 
-  {data['parametric_var']['tickers'].map((ticker,index)=>{
+  {data['tickers'].map((ticker,index)=>{
     //return <th key={index + 1}>{ticker}</th>
     console.log('NEW HELLO')
     console.log(index, ticker)
   })}
 
-  console.log(data['factor_var']['historical_data'])
+  console.log(data['factor_var']['chart_list'])
   return (
     <Tabs
       defaultActiveKey="hist"
@@ -110,18 +110,18 @@ const MarketRisk = () => {
         <Container fluid>
         <Row>
           <Col className='content'>
-            <b>1 Day VaR - 99% CI:</b>{data['factor_var']['var_1d']}
+            <b>1 Day VaR - 99% CI:</b>{data['factor_var']['var_1d'].at(-1)}
           </Col>
         </Row>
         <Row>
           <Col xs={9}>
               <div>
-                <MarketRiskBarChart data={data['factor_var']['historical_data']} axis={'date'} bar={'pl'}></MarketRiskBarChart>
+                <MarketRiskBarChart data={data['factor_var']['chart_list']} axis={'name'} bar={'PL'}></MarketRiskBarChart>
               </div>
           </Col>
           <Col>
             <div>  
-              <SideTable data={data['factor_var']['historical_data']} columns={columns}/> 
+              <SideTable data={data['factor_var']['chart_list']} columns={columns}/> 
             </div>
           </Col>
           <Col>
@@ -135,12 +135,12 @@ const MarketRisk = () => {
       </Tab>
       <Tab eventKey="profile" title="VaR - Parametric">
         <div className='content'>
-        <div><b>1 Day VaR - 99% CI:</b>{data['parametric_var']['var_1d']}</div>  
+        <div><b>1 Day VaR - 99% CI:</b>{data['parametric_var']['var_1_day']}</div>  
           <Table>
             <thead>
               <tr>
                 <th key={0}></th>  
-                {data['parametric_var']['tickers'].map((ticker,index)=>{
+                {data['tickers'].map((ticker,index)=>{
                   return <th key={index + 1}>{ticker}</th>
                 })}
               </tr>
@@ -149,7 +149,7 @@ const MarketRisk = () => {
               {data['parametric_var']['correlation'].map((row,index)=>{
                 return(
                 <tr key={index}>
-                  <th>{data['parametric_var']['tickers'][index]}</th>
+                  <th>{data['tickers'][index]}</th>
                   {row.map((value,index)=>{
                     console.log('VALUE!!!!!!!!!!!!!!!!!!')
                     console.log(value)
@@ -160,12 +160,12 @@ const MarketRisk = () => {
                 )})}
             </tbody>
           </Table>
-          <MarketRiskAreaChart data={data['parametric_var']['histogram']}/>
+          <MarketRiskAreaChart data={data['hist_series']}/>
         </div>
       </Tab>
       <Tab eventKey="stress" title="Stress Tests">
         <div>
-          <MarketRiskVerticalBarChart data={data['stress_tests']} axis={'stress'} bar={'result'}></MarketRiskVerticalBarChart>
+          <MarketRiskVerticalBarChart data={data['stress_tests']['stress_tests']} axis={'stress'} bar={'result'}></MarketRiskVerticalBarChart>
         </div>
       </Tab>
     </Tabs>

@@ -90,24 +90,25 @@ class PerformanceManager(models.Manager):
         benchmark_std = data_df['benchamrk_history'].pct_change().std() * math.sqrt(260)
         fund_sharpe = fund_return / fund_std 
         benchmark_sharpe = benchmark_return / benchmark_std
-        performance_dict = {'fund_return': fund_return ,'benchmark_return': benchmark_return,'fund_std': fund_std, 'benchmark_std': benchmark_std,'fund_sharpe': fund_sharpe, 'benchmark_sharpe': benchmark_sharpe}
+        performance_dict = {'fund':{'return':fund_return,'std':fund_std,'sharpe':fund_sharpe},'benchmark':{'return':benchmark_return,'std':benchmark_std,'sharpe':benchmark_sharpe}} 
+        #'fund_return': fund_return ,'benchmark_return': benchmark_return,'fund_std': fund_std, 'benchmark_std': benchmark_std,'fund_sharpe': fund_sharpe, 'benchmark_sharpe': benchmark_sharpe}
         status = self.calc_status(performance_dict)
         performance_dict['status'] = status
         fund = Fund.objects.filter(id=fund_id)[0].performance_status = status 
         return performance_dict
     
     def calc_status(self, return_dict):
-        if return_dict['fund_return'] > 0:
-            if return_dict['fund_sharpe'] > return_dict['benchmark_sharpe']:
+        if return_dict['fund']['return'] > 0:
+            if return_dict['fund']['sharpe'] > return_dict['benchmark']['sharpe']:
                 return 'pass'
-            elif (return_dict['fund_sharpe'] / return_dict['benchmark_sharpe']) > .9:
+            elif (return_dict['fund']['sharpe'] / return_dict['benchmark']['sharpe']) > .9:
                 return 'warning'
             else:
                 return 'fail'
         else:
-            if return_dict['fund_return'] > return_dict['benchmark']['return']:
+            if return_dict['fund']['return'] > return_dict['benchmark']['return']:
                 return 'pass'
-            elif (return_dict['fund_return'] / return_dict['benchmark_return']) > .9:
+            elif (return_dict['fund']['return'] / return_dict['benchmark']['return']) > .9:
                 return 'warning'
             else:
                 return 'fail' 
@@ -122,12 +123,25 @@ class PerformanceHistory(models.Model):
     objects = PerformanceManager()
 
 
+class PerformancePivotManager(models.Manager):
+    def performance_stats(self,fund_id):
+        data = self.filter(fund__pk=fund_id).values('type', 'label', 'perc_contrib')
+        return_dict = {'currency':[],'sector':[]}
+        for row in data:
+            return_dict[row['type']].append({'label':row['label'],'perc_contrib': row['perc_contrib']}) 
+
+        print(return_dict)
+        return return_dict
+    
+
 class PerformancePivots(models.Model):
     as_of_date = models.DateField()
     type = models.CharField(max_length=200)
     label = models.CharField(max_length=200)
     perc_contrib = models.FloatField(default=0)
     fund = models.ForeignKey(Fund, on_delete=models.CASCADE)
+    objects = PerformancePivotManager()
+    
 
 class LiquidityManager(models.Manager):
 
@@ -221,18 +235,28 @@ class MarketRiskStatistics(models.Model):
     value = models.FloatField(default=0)
     fund = models.ForeignKey(Fund, on_delete=models.CASCADE)
 
+class HistogramBins(models.Model):
+    as_of_date = models.DateField()
+    bin = models.FloatField(default=0) 
+    count = models.FloatField(default=0)
+    fund = models.ForeignKey(Fund, on_delete=models.CASCADE)
+
+class CorrelationManager(models.Manager):
+    def get_correlation(self,fund_id):
+        data = self.filter(fund__pk=fund_id).values('ticker','to','value')
+        data_df = pd.DataFrame(data)
+        table = pd.pivot_table(data_df, values='value', index=['ticker'], columns=['to'], aggfunc="sum")
+        correl_matrix = [table[col].tolist() for col in table.columns]
+        tickers = list(table.columns)
+        return [tickers,correl_matrix]
+
 class MarketRiskCorrelation(models.Model):
     as_of_date = models.DateField()
     ticker = models.CharField(max_length=200) 
     to = models.CharField(max_length=200)
     value = models.FloatField(default=0)
     fund = models.ForeignKey(Fund, on_delete=models.CASCADE)
-
-class HistogramBins(models.Model):
-    as_of_date = models.DateField()
-    bin = models.FloatField(default=0) 
-    count = models.FloatField(default=0)
-    fund = models.ForeignKey(Fund, on_delete=models.CASCADE)
+    objects = CorrelationManager()
 
 
 

@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/performance/<int:fund_id>', views.GetPerformance.as_view(),name='performance'),
     path('api/market_risk/<int:fund_id>', views.GetMarketRisk.as_view(),name='market_risk'),
     path('api/test_view/', views.TestView.as_view(),name='test_view'),
-    path('api/performance_data/', views.PerformanceAPIView.as_view(),name='test_view'),
-    path('api/liquidity_data/', views.LiquidityResultAPIView.as_view(),name='test_view'),
+    path('api/performance_data/<int:fund_id>', views.PerformanceAPIView.as_view(),name='performance_data'),
+    path('api/liquidity_data/<int:fund_id>', views.LiquidityResultAPIView.as_view(),name='liquidity_data'),
+    path('api/market_risk_data/<int:fund_id>', views.MarketRiskResultAPIView.as_view(),name='market_risk_view'),
 ]
