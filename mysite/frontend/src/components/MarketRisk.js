@@ -165,7 +165,7 @@ const MarketRisk = () => {
       </Tab>
       <Tab eventKey="stress" title="Stress Tests">
         <div>
-          <MarketRiskVerticalBarChart data={data['stress_tests']} axis={'stress'} bar={'result'}></MarketRiskVerticalBarChart>
+          <MarketRiskVerticalBarChart data={data['stress_tests']} axis={'type'} bar={'value'}></MarketRiskVerticalBarChart>
         </div>
       </Tab>
     </Tabs>

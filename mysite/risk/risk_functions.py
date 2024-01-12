@@ -1,42 +1,17 @@
 import yfinance as yf
 import math
 import requests
-import datetime
 import pandas as pd
 import numpy as np
-from collections import Counter
 import time
-from .models import PerformanceHistory, PerformancePivots, LiquditiyResult
 
-class RefreshPortfolio:
-    def __init__(self, yf_data, positions):
-        self.positions = positions
-        self.closing = yf_data
-
-    def refresh(self):
-        # Update each positon for the new closing price and FX rate
-        for position in self.positions:
-            filterd_ticker_df = self.closing[str(position)]
-            filterd_currency_df = self.closing[position.security.currency]
-            max_date = filterd_ticker_df.index.max()
-            closing_price = filterd_ticker_df[filterd_ticker_df.index == max_date].item()
-            fx_rate = filterd_currency_df[filterd_currency_df.index == max_date].item()
-            aum = position.fund.aum
-            updated_quantity = math.floor((position.percent_aum * aum) / closing_price / fx_rate)
-            position.last_price = closing_price
-            position.quantity = updated_quantity
-            position.price_date = max_date 
-            position.mkt_value_local = closing_price * updated_quantity
-            position.fx_rate = fx_rate
-            position.mkt_value_base = position.mkt_value_local * fx_rate 
-            position.percent_aum = position.mkt_value_base / aum
-            position.save()
 
 class GetFx:
 
-    def __init__(self, currency_set,to_currency):
+    def __init__(self, currency_set,to_currency, FxData):
         self.currency_set = currency_set
         self.to_currency = to_currency
+        self.FxData = FxData
 
     def fx_from_api(self, from_currency):
         apikey='2M3IEELDCP3HPW2F'
@@ -46,94 +21,80 @@ class GetFx:
         return data
 
     def get_fx(self, date=None):
-        df = pd.DataFrame()
-        
-        for index, currency in enumerate(self.currency_set,start=1):
-
-            # 5 API call per minute limit
-            if index % 5 == 0:
-                time.sleep(60)
-
             # if each currency in the pair is different get the data from the API
-            # if a date has been enterd a rate for 1 currency on that datw will be returned
+            # if a date has been enterd a rate for 1 currency on that date will be returned
             # if no date enetered a df with the currencies requested will be returned 
+        df = pd.DataFrame() 
+        count = 1
+        for currency in self.currency_set:
+  
             if currency != self.to_currency:
-                fx_json = self.fx_from_api(currency)
-                if 'Note' in fx_json:
-                    return 'API Limit Reached'
-                if 'Error Message' in fx_json:
-                    return 'Invalid Currency Code'
-                if date != None:
-                    return fx_json['Time Series FX (Daily)'][date]['4. close']
-                fx_df =  pd.DataFrame.from_dict(fx_json['Time Series FX (Daily)']).T['4. close']
-                fx_df = fx_df.astype('float')
-                fx_df = fx_df.rename(currency)
+
+                fx_query = self.FxData.objects.filter(as_of_date='2023-12-08').filter(to_currency=self.to_currency).filter(from_currency=currency)
+
+                if fx_query.count() > 0:
+                    fx_df =  pd.DataFrame(fx_query.values('date', 'value')).set_index('date')
+                    fx_df = fx_df.rename(columns={"value": currency})
+
+                else:
+                    # 5 API call per minute limit
+                    if count % 5 == 0:
+                        time.sleep(60)
+
+                    fx_json = self.fx_from_api(currency)
+                    if 'Note' in fx_json:
+                        return 'API Limit Reached'
+                    if 'Error Message' in fx_json:
+                        return 'Invalid Currency Code'
+                    if date != None:
+                        return fx_json['Time Series FX (Daily)'][date]['4. close']
+                    fx_df =  pd.DataFrame.from_dict(fx_json['Time Series FX (Daily)']).T['4. close']
+                    fx_df = fx_df.astype('float')
+                    fx_df = fx_df.rename('value')
+                    fx_df = fx_df.to_frame()
+                    fx_df.index.rename('date',inplace=True)
+                    #fx_df.index = fx_df.reset_index()
+                    fx_df['as_of_date'] = '2023-12-08'
+                    fx_df['to_currency'] = self.to_currency
+                    fx_df['from_currency'] = currency
+                    fx_data_objs = [self.FxData(**data) for data in fx_df.reset_index().to_dict('records')]
+                    #self.FxData.objects.filter(as_of_date='2023-12-08').filter(to_currency=self.to_currency).filter(from_currency=currency).delete()
+                    self.FxData.objects.filter(to_currency=self.to_currency).filter(from_currency=currency).delete()
+                    self.FxData.objects.bulk_create(fx_data_objs)
+                    fx_df.rename(columns={"value": currency}, inplace=True)
+                    fx_df = fx_df[currency]
+
                 df = pd.concat([df, fx_df],axis=1)
+                count = count + 1
+
             # if both currencies are the same when a specific date is request return a rate of 1  
             elif date != None:
                 return 1
+        print('DF FROM FX !!!')
+        print(df)
+        df = df.rename_axis('Date')
 
         return df
 
 class Liquidity:
-    def __init__(self, yf_data, position_info, fund):
+    def __init__(self, yf_data, position_info, fund, LiquditiyResult):
         self.positions = position_info
         self.average_volumne = yf_data['Volume'].reset_index().mean().to_dict()
         self.liq_limit = fund.liquidity_limit
         self.fund = fund
+        self.LiquditiyResult = LiquditiyResult
 
     def get_liquidity(self):
         
-        days_to_liquidate_dict = {}
-        cumulative_list, liquidity_result_list = [], []
-
         # calcualte liquidity metrics under normal market conditions and stressed condiitons (50% and 30% of ADV)
-        LiquditiyResult.objects.all().delete() 
+        self.LiquditiyResult.objects.all().delete() 
         for liquidity_stress_percent in [['100%',1],['50%',.5],['30%',.3]]:
-            result = self.calc_liq_stats(liquidity_stress_percent[1])
-            days_to_liquidate_dict[liquidity_stress_percent[0]] = result[0]
-            liquidity_result_list.append(result[1])
-            cumulative_list.append(result[2])
+            self.calc_liq_stats(liquidity_stress_percent[1])
+
         
-        # convert the cumulative liquidity result into the required format
-        cumulative_list_final = []
-        for bucket in ['1', '7', '30', '90', '180', '365', '366']:
-            bucket_dict = {}
-            bucket_dict['name'] = bucket
-            for row, perc_adv in enumerate(['100','50','30']):
-                bucket_dict[perc_adv] = cumulative_list[row][bucket]
-            cumulative_list_final.append(bucket_dict)
-
-        # prepare data to be reuturned
-        liquidity_result_dict = {}        
-        liquidity_result_dict['cumulative'] = cumulative_list_final 
-        liquidity_result_dict['result'] = liquidity_result_list
-        liquidity_result_dict['days'] = days_to_liquidate_dict
-        liquidity_result_dict['status'] = self.calc_status(days_to_liquidate_dict)
-
-        return liquidity_result_dict
-    
-    def calc_status(self, liquidity_days_dict):
-        # calcualte liquidity status (pass /warning / fail) based on the days to liquidte and the fund day limit
-        # if days to liquidte is less than the limit under stress conditions the sttus is a warning
-        if self.liq_limit == '365+':
-            return 'pass'
-        elif liquidity_days_dict['100%'] > int(self.liq_limit):
-             return 'fail'
-        elif (liquidity_days_dict['50%'] > int(self.liq_limit)) or (liquidity_days_dict['30%'] > int(self.liq_limit)):
-            return 'warning'
-        else:
-            return 'pass' 
 
     def calc_liq_stats(self,liquidity_stress_percent):
         #Calcualted the amount disposed in each time bucket and the cumulative amount disposed per bucket
-        cumulative_dict = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
-        cumulative_dict_2 = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
-        combined_bucket_dict = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
-        combined_bucket_dict_2 = {'day_1':0, 'day_7':0, 'day_30':0, 'day_90':0, 'day_180':0, 'day_365':0, 'day_366':0}
-        rows = []
-        rows2 = []
-        
 
         # Loop through each position in the fund and add the amount disposed of each day to the correct dict 
         for ticker in self.average_volumne:
@@ -147,30 +108,10 @@ class Liquidity:
             days_to_liquidate = math.ceil(quantity / quantity_disposed_per_day)
 
             bucket_list = ['1', '7', '30', '90', '180', '365', '366']
-            bucket_dict = {'1':0, '7':0, '30':0, '90':0, '180':0, '365':0, '366':0}
-            bucket_list_2 = ['day_1', 'day_7', 'day_30', 'day_90', 'day_180', 'day_365', 'day_366']
-            bucket_list_2 = ['1', '7', '30', '90', '180', '365', '366']
-            bucket_dict_2 = {'day_1':0, 'day_7':0, 'day_30':0, 'day_90':0, 'day_180':0, 'day_365':0, 'day_366':0,'as_of_date':'2023-12-08','type':ticker, 'stress':str(int(liquidity_stress_percent*100))+'%','fund':self.fund}
+            bucket_dict = {'day_1':0, 'day_7':0, 'day_30':0, 'day_90':0, 'day_180':0, 'day_365':0, 'day_366':0,'as_of_date':'2023-12-08','type':ticker, 'stress':str(int(liquidity_stress_percent*100))+'%','fund':self.fund}
 
             for day in range(1,days_to_liquidate+1):
-                for num, days in enumerate(bucket_list,start=1):
-
-                    # a different amonunt can be dispsoed of if it is the last day
-                    if day == days_to_liquidate:
-                        aum_disposed = qunatity_final_day / quantity * perc_aum
-                    else:
-                        aum_disposed = quantity_disposed_per_day / quantity * perc_aum
-
-                    # if the day is less than the time bucket add the amount dispiosed to the cumulative dict
-                    # only add to the individual bucket dict if the day is less than the current time bucket and greater than the previous time bucket    
-                    if day <= int(days):
-                        cumulative_dict[days] = cumulative_dict[days] + aum_disposed
-                        if day  > int(bucket_list[num - 2]) or days == '1': 
-                            bucket_dict[days] = bucket_dict[days] + aum_disposed
-                            combined_bucket_dict[days] = combined_bucket_dict[days] + aum_disposed
-
-            for day in range(1,days_to_liquidate+1):
-                for num, days in enumerate(list(bucket_dict_2.keys())[:-4],start=1):
+                for num, days in enumerate(list(bucket_dict.keys())[:-4],start=1):
                     #days = days.split('_')[1]
                     int_days = days.split('_')[1]
                     # a different amonunt can be dispsoed of if it is the last day
@@ -183,25 +124,16 @@ class Liquidity:
                     # only add to the individual bucket dict if the day is less than the current time bucket and greater than the previous time bucket    
   
                     if day <= int(int_days):
-                        cumulative_dict_2[int_days] = cumulative_dict_2[int_days] + aum_disposed
-                        if day  > int(bucket_list_2[num - 2]) or int_days == '1': 
-                            bucket_dict_2[days] = bucket_dict_2[days] + aum_disposed
-                            combined_bucket_dict_2[days] = combined_bucket_dict_2[days] + aum_disposed
+                        if day  > int(bucket_list[num - 2]) or int_days == '1': 
+                            bucket_dict[days] = bucket_dict[days] + aum_disposed
                             
-            LiquditiyResult.objects.create(**bucket_dict_2)
+            self.LiquditiyResult.objects.create(**bucket_dict)
   
-            bucket_dict['type'] = ticker
-            rows.append(bucket_dict)
-            rows2.append(bucket_dict_2)
 
-        combined_bucket_dict['subRows'] = rows
-        combined_bucket_dict_2['subRows'] = rows2
-        combined_bucket_dict['type'] = str(int(liquidity_stress_percent *100)) + '%'
 
-        return [days_to_liquidate,combined_bucket_dict,cumulative_dict,days_to_liquidate]
      
 class Performance:
-    def __init__(self, fx_converted_df, position_info_dict, fund):
+    def __init__(self, fx_converted_df, position_info_dict, fund, PerformanceHistory, PerformancePivots):
         self.positions = position_info_dict
         self.yf_data = fx_converted_df
         self.percent_return_df = self.yf_data.pct_change()
@@ -209,45 +141,17 @@ class Performance:
         self.benchmark = self.fund.benchmark
         self.benchmark_data = self.yf_data[self.benchmark]
         self.benchmark_return = self.percent_return_df[self.benchmark]
-        self.hist_data_series = self.calc_hist_data_series()
+        self.PerformanceHistory = PerformanceHistory
+        self.PerformancePivots = PerformancePivots
 
 
     def get_performance(self):
-
-        performance_dict = {'performance':{}}
-        weighted_returns = self.hist_data_series
-        historical_data = weighted_returns[['fund_history','benchamrk_history']].reset_index().to_dict('records')
-        fund_std = weighted_returns['fund_history'].pct_change().std() * math.sqrt(260)
-        benchmark_std = self.benchmark_return.std() * math.sqrt(260)
-        pivots = self.calc_period_return()
-
-        performance_dict['performance']['fund_history'] = historical_data 
-        performance_dict['performance']['pivots'] = pivots
         
-        return_dict = performance_dict['performance']['pivots']['performance'] 
-        return_dict['fund']['std'] = fund_std
-        return_dict['benchmark']['std'] = benchmark_std
-        return_dict['fund']['sharpe'] = return_dict['fund']['return'] / fund_std
-        return_dict['benchmark']['sharpe'] = return_dict['benchmark']['return'] / benchmark_std
-        return_dict['status'] = self.calc_status(return_dict)
-        return performance_dict
+        print('self.yf_data')
+        print(self.yf_data)
+        self.calc_period_return()
+        self.calc_hist_data_series()
 
-    def calc_status(self, return_dict):
-        if return_dict['fund']['return'] > 0:
-            if return_dict['fund']['sharpe'] > return_dict['benchmark']['sharpe']:
-                return 'pass'
-            elif (return_dict['fund']['sharpe'] / return_dict['benchmark']['sharpe']) > .9:
-                return 'warning'
-            else:
-                return 'fail'
-        else:
-            if return_dict['fund']['return'] > return_dict['benchmark']['return']:
-                return 'pass'
-            elif (return_dict['fund']['return'] / return_dict['benchmark']['return']) > .9:
-                return 'warning'
-            else:
-                return 'fail'
-    
 
     def calc_hist_data_series(self):
         # Calcualte the fund and benchmark time series with a base value of 100
@@ -269,37 +173,20 @@ class Performance:
         benchmark_base = self.benchmark_data[0]
         rebased_benchmark = self.benchmark_data / benchmark_base * 100
         weighted_return_df['benchamrk_history'] = rebased_benchmark
-        # Delete test?
-        test_weighted_return_df = weighted_return_df[['fund_history','benchamrk_history']].reset_index()
-        test_weighted_return_df.rename(columns={"Date": "date"}, inplace=True)
-        test_weighted_return_df['as_of_date'] = '2023-12-08'
-        test_weighted_return_df['fund'] = self.fund
-        test_weighted_return_dict = test_weighted_return_df.to_dict('records')
-        performance_history_objs = [PerformanceHistory(**data) for data in test_weighted_return_dict]
-        PerformanceHistory.objects.all().delete()
-        PerformanceHistory.objects.bulk_create(performance_history_objs)
-        return weighted_return_df[['fund_history','benchamrk_history']]
-
-    def calc_performance_statistics(self):
-        hist_series = self.hist_data_series
-        percent_change_df = hist_series.iloc[[0, -1]].pct_change()
-
-        fund_return = percent_change_df.iloc[-1,0]
-        benchmark_return = percent_change_df.iloc[-1,1]     
-        fund_std = hist_series['fund_history'].pct_change().std() * math.sqrt(260)
-        benchmark_std = hist_series['benchamrk_history'].pct_change().std() * math.sqrt(260)
-        fund_sharpe = fund_return / fund_std 
-        benchmark_sharpe = benchmark_return / benchmark_std
-
-        fund_dict = {'return': fund_return, 'std': fund_std, 'sharpe': fund_sharpe}
-        benchmark_dict = {'return': benchmark_return, 'std': benchmark_std, 'sharpe': benchmark_sharpe}
-
-        print()
+        weighted_return_df = weighted_return_df[['fund_history','benchamrk_history']].reset_index()
+        weighted_return_df.rename(columns={"Date": "date"}, inplace=True)
+        weighted_return_df['as_of_date'] = '2023-12-08'
+        weighted_return_df['fund'] = self.fund
+        weighted_return_dict = weighted_return_df.to_dict('records')
+        performance_history_objs = [self.PerformanceHistory(**data) for data in weighted_return_dict]
+        self.PerformanceHistory.objects.all().delete()
+        self.PerformanceHistory.objects.bulk_create(performance_history_objs)
 
 
     def calc_period_return(self):
 
         # Get first and last price for positions and benchmark and calculate return
+        print(self.yf_data)
         percent_change_df = self.yf_data.iloc[[0, -1]].pct_change()
         # Keep only the row with the most recent date
         percent_change_df = percent_change_df.iloc[-1].to_frame()
@@ -309,9 +196,6 @@ class Performance:
         position_info_df = pd.DataFrame.from_dict(self.positions, orient='index',columns=['quantity', 'perc_aum', 'sector', 'currency'])
         combined_df = position_info_df.merge(percent_change_df, left_index=True, right_index=True)
         combined_df['perc_contrib'] = combined_df['perc_return'] * combined_df['perc_aum']
-
-        sector_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['sector'], aggfunc=np.sum)
-        currency_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['currency'], aggfunc=np.sum)
 
         test_sector_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['sector'], aggfunc=np.sum).reset_index().rename(columns={"sector": "label"})
         test_sector_pivot['fund'] = self.fund
@@ -323,18 +207,8 @@ class Performance:
         test_currency_pivot['as_of_date'] = '2023-12-08'
         test_currency_pivot['type'] = 'currency'
 
-        PerformancePivots.objects.all().delete()
+        self.PerformancePivots.objects.all().delete()
         performance_pivot_list = test_sector_pivot.to_dict('records') + (test_currency_pivot.to_dict('records'))
-        performance_pivot_objs = [PerformancePivots(**data) for data in performance_pivot_list]
-        PerformancePivots.objects.bulk_create(performance_pivot_objs)
+        performance_pivot_objs = [self.PerformancePivots(**data) for data in performance_pivot_list]
+        self.PerformancePivots.objects.bulk_create(performance_pivot_objs)
         
-
-        pivot_dict = {
-            'performance': {'fund':{'return': combined_df.sum().to_dict()['perc_contrib']},
-            'benchmark' :{'return': percent_change_df.to_dict()['perc_return'][self.benchmark]}} ,
-            'pivots': {
-                'currency':currency_pivot.reset_index().to_dict('records'),
-                'sector': sector_pivot.reset_index().to_dict('records')
-                }
-            }
-        return pivot_dict

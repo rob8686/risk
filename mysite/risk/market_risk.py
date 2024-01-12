@@ -6,32 +6,31 @@ import pymongo
 import datetime
 import json
 import datetime as dt
-from .models import HistVarSeries, MarketRiskStatistics, MarketRiskCorrelation, HistogramBins
 
 class Var():
 
-    def __init__(self, fx_converted_df, yf_dict, collection, fund):
-        self.collection = collection
+    def __init__(self, fx_converted_df, yf_dict, fund, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData):
+        self.fund = fund
+        self.HistVarSeries = HistVarSeries
+        self.MarketRiskStatistics = MarketRiskStatistics
+        self.HistogramBins = HistogramBins
+        self.MarketRiskCorrelation = MarketRiskCorrelation
+        self.FactorData = FactorData
         self.fx_converted_df = fx_converted_df
-        #self.perc_return_df = self.combined_df.pct_change().dropna().reset_index()
         self.yf_dict = yf_dict
-        self.factors = ['SPY','^TNX','BZ=F','^NYICDX','IGLN.L','^VIX']
+        self.factors = ['spy','tnx','bz','nyicdx','igln','vix']
         self.risk_factor_df = self.get_factors()
         self.fx_converted_df.index = pd.to_datetime(self.fx_converted_df.index)
         self.combined_df = pd.merge(self.fx_converted_df,self.risk_factor_df, left_index=True, right_index=True).pct_change().dropna().reset_index()
         self.weights = self.position_weights()
         self.tickers = self.fx_converted_df.columns
-        self.fund = fund
+
 
     def get_var(self):
         result = {}
         x_date = self.combined_df[self.factors].to_numpy()
         x = x_date[:,0:].astype(float)
-        #print('Linear Model111111111111111111111')
-        #print(self.linear_model(x))
-        #print('FACTOR222222')
-        #print(self.factor_var2())
-        MarketRiskStatistics.objects.all().delete()
+        self.MarketRiskStatistics.objects.all().delete()
         result['parametric_var'] = self.parametric_var()
         result['factor_var'] = self.factor_var2()
         result['tickers'] = list(self.tickers) 
@@ -41,9 +40,6 @@ class Var():
         return result
 
     def position_weights(self):
-        print('SELF > YF DICT')
-        print(self.yf_dict)
-        print(self.fx_converted_df)
         weights = []
         for col in self.fx_converted_df.columns:
             weight = self.yf_dict[col][1]
@@ -67,51 +63,35 @@ class Var():
         combined = list(map(create_dict, hist.tolist(), bin_edges.tolist()))
         combined_NEW = list(map(create_dict_NEW, hist.tolist(), bin_edges.tolist()))
 
-        HistogramBins.objects.all().delete()
-        histogram_objs = [HistogramBins(**data) for data in combined_NEW]
-        HistogramBins.objects.bulk_create(histogram_objs)
-        print()
-        print('hist_series hist_series')
-        print(list(combined))
-        print()
+        self.HistogramBins.objects.all().delete()
+        histogram_objs = [self.HistogramBins(**data) for data in combined_NEW]
+        self.HistogramBins.objects.bulk_create(histogram_objs)
         return list(combined)
 
 
     def parametric_var(self):
+        print(self.combined_df)
         returns = self.combined_df.drop(self.factors, axis=1).drop('Date',axis=1).to_numpy()
         weights = self.position_weights()
         cov = np.cov(returns.T.astype(float))
         corr = np.around(np.corrcoef(returns.T.astype(float)),2)
         #myList = list(np.around(np.array(myList),2))
-        print(len(returns[0]))
-        print(returns.ndim)
-        print()
         if len(returns[0]) != 1:
             std_dev = math.sqrt(weights @ cov @ weights.T)
         else:
+            print('UPDATE THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             std_dev = .2
-        #print('STD DEV',std_dev * math.sqrt(260))
         var_1_day = std_dev * 2.33
-        #print('var_1_day',var_1_day)
-        #print(corr)
-        #print()
 
-        MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='parametric_var',value=var_1_day, fund=self.fund )
-        print('CORRELASTIONS!!!!!!!! CORREL')
-        print(corr.tolist())
-        print()
-        print(corr)
-        print()
-        print(list(self.tickers))
-        print()
-        
+        self.MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='parametric_var',value=var_1_day, fund=self.fund )
+ 
         correl_list =[]
         for index, ticker in enumerate(self.tickers):
             for correl_index, correl_ticker in enumerate(self.tickers):
                 correl_list.append({'as_of_date':'2023-12-08','ticker': ticker,'to': correl_ticker, 'value': corr.tolist()[index][correl_index],'fund':self.fund})
                 
-        market_risk_correl_objs = [MarketRiskCorrelation(**data) for data in correl_list]
-        MarketRiskCorrelation.objects.bulk_create(market_risk_correl_objs)
+        market_risk_correl_objs = [self.MarketRiskCorrelation(**data) for data in correl_list]
+        self.MarketRiskCorrelation.objects.bulk_create(market_risk_correl_objs)
 
         return {'var_1_day': var_1_day,'correlation':corr.tolist()}
     
@@ -122,7 +102,6 @@ class Var():
         
         y_df = self.combined_df.drop(self.factors, axis=1)
         y_df = self.weights * y_df.loc[:, y_df.columns != 'Date']
-        #print('Linear Model!!!!!!!!!!')
         result={}
         result_array = np.array([])
         column_length = len(y_df.columns)
@@ -130,17 +109,10 @@ class Var():
         result_array = np.zeros(shape=(column_length, factor_num))
 
         for idx, ticker in enumerate(y_df.columns):
-            #print('Index',idx)
-            #print()
             y = y_df[ticker].to_numpy()
             b = np.linalg.inv(x.T @ x) @ x.T @ y
-            #print(ticker)
-            #print(b)
-            #print('XCXXXXXXXXXXXXXXXXXXXXXXXXXXX')
-            #print(x)
             result[ticker] = b
             result_array[idx] = b
-            #print()
         
         return result_array
     
@@ -148,7 +120,6 @@ class Var():
         
         ci_99 = int(round(self.combined_df.iloc[:, 0].count() *.01,0))
         x_date = self.combined_df[self.factors].to_numpy()
-        #print(self.combined_df.dtypes)
         dates = list(self.combined_df['Date'].dt.strftime('%Y-%m-%d'))
         x = x_date[:,0:].astype(float)
         b = self.linear_model(x)
@@ -168,8 +139,6 @@ class Var():
         sorted_combined_result = combined_result[combined_result[:, -1].argsort()]
         print('INDIVIDUAL VAR')
         individual_var = np.sort(combined_result,axis=0)[ci_99]
-        print(individual_var)
-        print()
 
         sorted_hist_series = np.sort(hist_series)
         var_1d = sorted_combined_result[ci_99]
@@ -189,15 +158,11 @@ class Var():
             row_dict['pl'] = pl
             row_dict['fund'] = self.fund
             chart_list_NEW.append(row_dict)
-
-
-        #MarketRiskStatistics.objects.create()
-        
-        HistVarSeries.objects.all().delete()
-        hist_var_series_objs = [HistVarSeries(**data) for data in chart_list_NEW]
-        HistVarSeries.objects.bulk_create(hist_var_series_objs)
-        MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='hist_var_result',value=individual_var[-1], fund=self.fund )
-
+ 
+        self.HistVarSeries.objects.all().delete()
+        hist_var_series_objs = [self.HistVarSeries(**data) for data in chart_list_NEW]
+        self.HistVarSeries.objects.bulk_create(hist_var_series_objs)
+        self.MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='hist_var_result',value=individual_var[-1], fund=self.fund )
         
         return {'var_1d':var_1d.tolist(), 'individual_var':individual_var.tolist(),'var_history':hist_series.tolist(), 'dates': dates,'chart_list':chart_list}
     
@@ -214,12 +179,8 @@ class Var():
           [0, 0, 0, -.1, 0, 0],
          ])
         
-        #print('Stress Tests')
-        #print(stresses)
-
         b = self.linear_model(1)
 
-        #print(b)
         result = stresses @ b.T
         stress_result = result.sum(axis=1).tolist()
         stress_names = ['Equity up 10%', 'Equity up 5%', 'Equity down 10%', 'Equity down 5%', 
@@ -235,8 +196,8 @@ class Var():
         combined_stress = list(map(create_dict, stress_names, stress_result))
 
         combined_stress_new = list(map(create_dict_NEW, stress_names, stress_result))
-        market_risk_stat_objs = [MarketRiskStatistics(**data) for data in combined_stress_new]
-        MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
+        market_risk_stat_objs = [self.MarketRiskStatistics(**data) for data in combined_stress_new]
+        self.MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
 
         return {'stress_tests':combined_stress}
         
@@ -258,20 +219,13 @@ class Var():
         for ticker in y_df.columns:
             y = y_df[ticker].to_numpy()
             b = np.linalg.inv(x.T @ x) @ x.T @ y
-            #print(ticker)
-            #print(b)
             result_list = []
             for row in x_date:
-                #print(row)
                 result = row * b
-                #print(row)
-                #print('RESULTTTTTTTTTTT')
-                #print(result)
                 result_list.append(result.item(0))
             data[ticker] = result_list
             var = sorted(result_list)[ci_99-1] 
             individual_var[ticker] = var
-            print()
 
         date_list = [date for date in self.combined_df['Date']]
         data['Date'] = date_list
@@ -282,39 +236,37 @@ class Var():
         var_20d = var_1d * math.sqrt(20)
         pl_history = result_df[['Date','fund_return']].to_json(orient="columns")
         return {'var_1d':var_1d, 'individual_var':individual_var,'var_history':pl_history}
+    
 
     def get_factors(self):
-        max_factor_date  = datetime.datetime.fromtimestamp(max(self.collection.find_one({'_id':999999})['factor_data']['index']) / 1e3 ).date()
-        max_fund_date = datetime.datetime.strptime(max(self.fx_converted_df.index),'%Y-%m-%d').date()
 
-        if max_factor_date >= max_fund_date:
-            print('DATA CHECK PASSED!!!')
-            factor_data = self.collection.find_one({'_id':999999})['factor_data']
-            data = pd.read_json(json.dumps(factor_data), orient='split')
+        factor_data = self.FactorData.objects.filter(as_of_date='2023-12-08')
+
+        if factor_data.count() > 0:
+            factor_data_df = pd.DataFrame(factor_data.values('date','spy','tnx','bz','nyicdx','igln','vix'))
         else:
-            print('DATA CHECK FAILED!!!')
             ticker_string = ''
-            for ticker in self.factors:
+            for ticker in ['SPY','^TNX','BZ=F','^NYICDX','IGLN.L','^VIX']:
                 ticker_string = ticker_string + ticker +' '
         
             data = yf.download(tickers=ticker_string, period="1y",
                 interval="1d", group_by='column',auto_adjust=True, prepost=False,threads=True,proxy=None)
             data = data['Close'].fillna(method="ffill").dropna()
-            factor_json = json.loads(data.to_json(orient='split'))
-            self.collection.replace_one({'_id':999999},{'factor_data':factor_json},upsert=True)
+            data['as_of_date'] = '2023-12-08'
+            data.columns = [col.lower() for col in data.columns]
+            data = data.rename(columns={"bz=f": "bz", "igln.l": "igln","^nyicdx": "nyicdx","^tnx": "tnx","^vix": "vix"}).to_dict('records')
+            #DELTE THEIS DELTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            self.FactorData.objects.all().delete()
+            factor_data_objs = [self.FactorData(**obj) for obj in data]
+            self.FactorData.objects.bulk_create(factor_data_objs)
+            factor_data = self.FactorData.objects.filter(as_of_date='2023-12-08')
+            factor_data_df = pd.DataFrame(factor_data.values('date','spy','tnx','bz','nyicdx','igln','vix'))
 
-        data.index.rename('Date',inplace=True)
-        return data
+        factor_data_df = factor_data_df.set_index('date')
+        factor_data_df.index.rename('Date',inplace=True)
+
+        return factor_data_df
+    
     
         
-#def var(weights, data):
-def var(fx_converted_df, yf_dict):
-    np.array([[.1, 0,0,0,0], [3, 4]])
-
-#weighted_return_df = pd.DataFrame()
-#self.positions[self.benchmark] = [1, 1]
-
-#for ticker in self.positions:
-    #percent_aum = self.positions[ticker][1]
-    #weighted_return_df[ticker] = self.percent_return_df[ticker] * percent_aum 
 

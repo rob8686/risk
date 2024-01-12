@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Fund, Position, Security, PerformanceHistory, PerformancePivots, LiquditiyResult
+from .models import Fund, Position, Security, PerformanceHistory, PerformancePivots, LiquditiyResult, FxData
 import yfinance as yf
 import datetime
 import math
@@ -70,7 +70,7 @@ class CreatePositionSerializer(serializers.ModelSerializer):
             closing_price.index = closing_price.index.strftime('%Y/%m/%d')
             validated_data['last_price'] = closing_price.item()
             validated_data['price_date'] = datetime.datetime.strptime(closing_price.index[0],'%Y/%m/%d').strftime('%Y-%m-%d')
-            get_fx = GetFx([security_currency],fund_currency)
+            get_fx = GetFx([security_currency],fund_currency,FxData)
             fx_rate = get_fx.get_fx(validated_data['price_date'])
             validated_data['fx_rate'] = fx_rate    
             validated_data['quantity'] = math.floor((validated_data['percent_aum'] * funds[0].aum / 100) / closing_price / float(fx_rate))

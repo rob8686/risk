@@ -22,7 +22,7 @@ const MarketRiskAreaChart = (props) => {
         <YAxis />
         <Tooltip />
         <Legend />
-        <Area type="monotone" dataKey="frequency" stroke="#8884d8" fill="#8884d8" />
+        <Area type="monotone" dataKey="count" stroke="#8884d8" fill="#8884d8" />
 
       </AreaChart>
       </ResponsiveContainer>

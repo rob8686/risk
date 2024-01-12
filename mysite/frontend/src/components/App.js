@@ -27,16 +27,12 @@ const App = () => {
 
   const [funds, setFunds] = useState([])
   const [pathname, setPathname] = useState([window.location.pathname])
-  console.log('HERE1')
-  //const location = useLocation();
-  console.log('THERE2')
   const currentURL = window.location.href // returns the absolute URL of a page
-  //const pathname = window.location.pathname //returns the current url minus the domain name
   console.log(currentURL)
   console.log(pathname)
   console.log('Everywhere!!')
 
-
+  
   useEffect(() => {
     getFunds()
   }, []) 

@@ -19,15 +19,8 @@ const Positions = (props) => {
 
     console.log('posiitons',positions)
     const getPositions = async (fundNum) => {
-        console.log('FUND NUMB')
-        console.log(fundNum)
-        //const url = `http://127.0.0.1:8000/api/position/?fund=${fundNum}`
         const url = 'http://127.0.0.1:8000/api/position/?fund=' + fundNum
-        console.log(url)
         const PositionsFromServer = await fetchData(url)//+fundNum)
-        console.log('123456789 HERE ')
-        console.log(fundNum)
-        console.log(PositionsFromServer)
         PositionsFromServer.forEach((elem) =>{
             let securities = elem['securities'];
             delete securities.id;
@@ -59,12 +52,7 @@ const Positions = (props) => {
         deletePosition(positionId)
     }
 
-    const headerList=[<th>ID</th>,<th>Name</th>,<th>Ticker</th>,<th>Ccy</th>,
-        <th>Sector</th>,<th>Industry</th>,<th>Date</th>,<th>Last price</th>,
-        <th>Quantity</th>,<th>Market Value Local</th>, <th>FX Rate</th>,
-        <th>Market Value Base</th>, <th>Percent AUM</th>,<th>Delete</th>];
-
-
+    // Delere this??
     positions.forEach((obj,index)=>{
         rowList.push(
         <tr key={index}>
@@ -122,17 +110,7 @@ const Positions = (props) => {
       },
     ]
 
-  //<Table striped bordered hover size="sm">
-  //  <tr>
-  //    {headerList}
-  //  </tr>
-  //  <tbody>
-  //    {rowList}  
-  //  </tbody>
-  //</Table>  
-
-  //if (!positions.length) return <div>Loading...</div>  
-
+ 
   return (
     <div>
         <Routes>

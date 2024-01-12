@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Security, Position,Fund, PerformanceHistory, PerformancePivots, LiquditiyResult, HistVarSeries, MarketRiskStatistics, MarketRiskCorrelation, HistogramBins
+from .models import Security, Position,Fund, PerformanceHistory, PerformancePivots, LiquditiyResult, HistVarSeries, MarketRiskStatistics, MarketRiskCorrelation, HistogramBins, FactorData, FxData
 
 admin.site.register(Security)
 admin.site.register(Position)
@@ -11,3 +11,5 @@ admin.site.register(HistVarSeries)
 admin.site.register(MarketRiskStatistics)
 admin.site.register(MarketRiskCorrelation)
 admin.site.register(HistogramBins)
+admin.site.register(FactorData)
+admin.site.register(FxData)
