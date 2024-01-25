@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import viewsets, status
-from .serializers import FundSerializer,PositionSerializer, CreatePositionSerializer, PerformanceHistorySerializer, PerformancePivotSerializer
+from .serializers import FundSerializer,PositionSerializer, CreatePositionSerializer
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, BasePermission, SAFE_METHODS
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from requests.exceptions import HTTPError
@@ -26,6 +26,7 @@ class PositionWritePermission(BasePermission):
             return True
         return True
 
+
 class FundViewSet(viewsets.ModelViewSet):
     """
     A viewset for managing funds.
@@ -37,6 +38,7 @@ class FundViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
     queryset = Fund.objects.all()
     serializer_class = FundSerializer
+
 
 class PositionViewSet(viewsets.ModelViewSet):
     """
@@ -68,6 +70,9 @@ class PositionViewSet(viewsets.ModelViewSet):
             return PositionSerializer
 
     def create(self, request, *args, **kwargs):
+        """
+        Overrides create to include custom error handling.
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True) # review
         try:
@@ -79,71 +84,57 @@ class PositionViewSet(viewsets.ModelViewSet):
         except HTTPError:
             return Response(status=status.HTTP_404_NOT_FOUND)
         
-        headers = self.get_success_headers(serializer.data) # Review
+        headers = self.get_success_headers(serializer.data) # Review!!!!!!!!!!!!
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-class PerformanceHistoryViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    authentication_classes = [JWTAuthentication]
-    queryset = PerformanceHistory.objects.all()
-    serializer_class = PerformanceHistorySerializer
-
-    def get_queryset(self):
-        fund = self.request.GET.get('fund')
-        queryset = PerformanceHistory.objects.filter(fund__pk=fund)
-        return queryset
-    
-
-    def list(self, requests):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        performance_stats = PerformanceHistory.objects.performance_stats()
-        response_data = {
-            'data': serializer.data,
-            'performance_stats': performance_stats
-        }
-        return Response(response_data, status=status.HTTP_200_OK)
-    
-class PerformancePivotViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    authentication_classes = [JWTAuthentication]
-    queryset = PerformancePivots.objects.all()
-    serializer_class = PerformancePivotSerializer
-    
-    def get_queryset(self):
-        fund = self.request.GET.get('fund')
-        queryset = PerformancePivots.objects.filter(fund__pk=fund)
-        return queryset
     
 
 class PerformanceAPIView(APIView):
+    """
+    API view for returning fund performance data.
+    """
+
     def get(self, request, fund_id):
+        """
+        Gets: 
+        - fund and benchamrk price timeseries
+        - fund statistics such as return, volatility and sharpe ratio
+        - performance pivoted by currency and industry 
+        - the performance status of the fund (pass / warning / fail) 
+        """
+
         performance_history = PerformanceHistory.objects.filter(fund__pk=fund_id).values('date', 'fund_history', 'benchamrk_history')
         performance_pivots = PerformancePivots.objects.performance_stats(fund_id)
         performance_stats = PerformanceHistory.objects.performance_stats(fund_id)
-
         return Response({'performance_pivots': performance_pivots,'performance_history':performance_history,'performance_stats':performance_stats},status=status.HTTP_200_OK)
     
+
 class LiquidityResultAPIView(APIView):
+    """
+    API view for returning fund liquidity data.
+    """
+     
     def get(self, request, fund_id):
+        """
+        Gets: 
+        - time to liqudiate for fund and psoitions 
+        - the liquidity status of the fund
+        """
         Liquidity_stats = LiquditiyResult.objects.liquidity_stats(fund_id)
         return Response({'Liquidity_stats':Liquidity_stats},status=status.HTTP_200_OK)
     
+
 class MarketRiskResultAPIView(APIView):
+    """
+    API view for returning market risk data.
+    """
+
     def get(self, request, fund_id):
+        """
+        Gets: 
+        - VaR history
+        - Factor VaR and stress testing results
+        - Parametric VaR result and statistics
+        """
         hist_var_history = HistVarSeries.objects.filter(fund__pk=fund_id).values('date', 'pl')
         risk_stats = MarketRiskStatistics.objects.filter(fund__pk=fund_id)
         var_1d_hist = risk_stats.filter(type='hist_var_result')[0].value
@@ -152,6 +143,13 @@ class MarketRiskResultAPIView(APIView):
         correlation_data = MarketRiskCorrelation.objects.get_correlation(fund_id)
         tickers, correlation_matrix = correlation_data[0], correlation_data[1]
         stress_tests = risk_stats.filter(catagory='stress_test').values('type','value')
+
+        print('CORRELATION')
+        print(correlation_matrix)
+        print('var_1d_parametric')
+        print(var_1d_parametric)
+
+
 
         return Response({
             'factor_var': {'historical_data':hist_var_history, 'var_1d':var_1d_hist},
@@ -162,14 +160,19 @@ class MarketRiskResultAPIView(APIView):
     
 
 class GetRiskData(APIView):
-    def get(self, request, fund_id, fund_currency,format='json'):
+    """
+    API view that runs the risk calcualtions.
+    """
 
-            fund = Fund.objects.filter(id=fund_id)[0]
-            fund.run_risk()
-            return Response(status=status.HTTP_200_OK)
+    def get(self, request, fund_id, fund_currency,format='json'):
+        """
+        RUn risk calcualtions for inputed fund.
+        """ 
+        fund = Fund.objects.filter(id=fund_id)[0]
+        fund.run_risk()
+        return Response(status=status.HTTP_200_OK)
 
         
-
 class TestView(APIView):
     def get(self, request):
         fund_id = 1

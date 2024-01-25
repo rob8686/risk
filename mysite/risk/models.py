@@ -194,6 +194,8 @@ class PerformanceManager(models.Manager):
         """
 
         data = list(self.filter(fund__pk=fund_id).values())
+        fund = Fund.objects.filter(id=fund_id).first()
+
         data_df = pd.DataFrame(data)
         percent_change_df = data_df[['fund_history','benchamrk_history']].iloc[[0, -1]].pct_change()
         fund_return = percent_change_df.iloc[-1,0]
@@ -205,7 +207,8 @@ class PerformanceManager(models.Manager):
         performance_dict = {'fund':{'return':fund_return,'std':fund_std,'sharpe':fund_sharpe},'benchmark':{'return':benchmark_return,'std':benchmark_std,'sharpe':benchmark_sharpe}} 
         status = self.calc_status(performance_dict)
         performance_dict['status'] = status
-        Fund.objects.filter(id=fund_id)[0].performance_status = status 
+        fund.performance_status =  status 
+        fund.save()
         return performance_dict
     
     def calc_status(self, return_dict):
@@ -220,14 +223,14 @@ class PerformanceManager(models.Manager):
         """
 
         if return_dict['fund']['return'] > 0:
-            if return_dict['fund']['sharpe'] > return_dict['benchmark']['sharpe']:
+            if return_dict['fund']['sharpe'] >= return_dict['benchmark']['sharpe']:
                 return 'pass'
             elif (return_dict['fund']['sharpe'] / return_dict['benchmark']['sharpe']) > .9:
                 return 'warning'
             else:
                 return 'fail'
         else:
-            if return_dict['fund']['return'] > return_dict['benchmark']['return']:
+            if return_dict['fund']['return'] >= return_dict['benchmark']['return']:
                 return 'pass'
             elif (return_dict['fund']['return'] / return_dict['benchmark']['return']) > .9:
                 return 'warning'
@@ -367,13 +370,18 @@ class LiquidityManager(models.Manager):
 
             # sum the selected LiquditiyResult objects to get the total amount liquidated per days bucket 
             aggregate_data = data.aggregate(day_1=Sum('day_1'), day_7=Sum('day_7'), day_30=Sum('day_30'),day_90=Sum('day_90'), day_180=Sum('day_180'), day_365=Sum('day_365'),day_366=Sum('day_366'))
-            aggregate_data['stress'] = stress_percent
+            aggregate_data['type'] = stress_percent
             aggregate_data['subRows'] = list(data.values('day_1', 'day_7', 'day_30', 'day_90', 'day_180', 'day_365', 'day_366','type'))
             result_list.append(aggregate_data)
         
         result_dict['result'] = result_list
         result_dict['cumulative'] = self.cumulative_liquidity(result_list)
-        result_dict['status'] = self.calc_status(result_list,fund_id)
+        status = self.calc_status(result_list,fund_id)
+        result_dict['status'] = status
+
+        fund = Fund.objects.filter(id=fund_id)[0]
+        fund.liquidity_status = status
+        fund.save()
 
         return result_dict
     
@@ -619,9 +627,11 @@ class CorrelationManager(models.Manager):
         Returns:
         - list: list of list containing the tickers and correlation matrix.
         """
-
+        print('Correl Data')
         data = self.filter(fund__pk=fund_id).values('ticker','to','value')
+        print(data)
         data_df = pd.DataFrame(data)
+        print(data_df)
         table = pd.pivot_table(data_df, values='value', index=['ticker'], columns=['to'], aggfunc="sum")
         correl_matrix = [table[col].tolist() for col in table.columns]
         tickers = list(table.columns)

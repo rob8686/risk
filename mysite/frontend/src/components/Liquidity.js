@@ -55,7 +55,7 @@ function Liquidity() {
         },
             {
               Header: 'Liq %',
-              accessor: 'stress',
+              accessor: 'type',
             },
             {
               Header: '1',
