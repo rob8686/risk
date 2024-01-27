@@ -65,7 +65,7 @@ class Var():
         self.MarketRiskStatistics.objects.filter().delete()
         self.HistogramBins.objects.all().delete()
         self.parametric_var()
-        result['factor_var'] = self.factor_var2()
+        self.factor_var()
         result['tickers'] = list(self.tickers) 
         #result['factor_var'] = self.factor_var()
         result['stress_tests'] = self.stress_tests()
@@ -148,82 +148,75 @@ class Var():
         Calcualted the coefficents of the linear model 
 
         Returns:
-        list[(str,str)]: list of tuples containing the ticker and currency of a position.
+        numpy.ndarray: the factor model coefficents.
 
         """
-        # indepentend variables -historical factor data
+        # indepentend variables - historical factor data
         x = self.combined_df[self.factors].to_numpy()
 
-        # dependent variables -historical position data
+        # dependent variables - historical position data
         y_df = self.combined_df.drop(self.factors, axis=1)
         y_df = self.weights * y_df.loc[:, y_df.columns != 'Date']
 
-        
+        # Calcualte the dimensions of the array that will be returned
         column_length = len(y_df.columns)
         factor_num = len(self.factors) 
-        result_array = np.zeros(shape=(column_length, factor_num))
+        coefficient_array = np.zeros(shape=(column_length, factor_num))
 
+        # calcualte the coefficients for each ticker using least-squares estimation: b = (X^T.X)-1.X^T.Y
         for idx, ticker in enumerate(y_df.columns):
             y = y_df[ticker].to_numpy()
             b = np.linalg.inv(x.T @ x) @ x.T @ y
-            result_array[idx] = b
+            coefficient_array[idx] = b
         
-        print('Result Array')
-        print(result_array)
-
-        return result_array
+        return coefficient_array
     
-    def factor_var2(self):
+    def factor_var(self):
+        """
+        Calcualted the coefficents of the linear model 
+
+        Returns:
+        numpy.ndarray: the factor model coefficents.
+
+        """
         
-        ci_99 = int(round(self.combined_df.iloc[:, 0].count() *.01,0))
-        x_date = self.combined_df[self.factors].to_numpy()
         dates = list(self.combined_df['Date'].dt.strftime('%Y-%m-%d'))
-        x = x_date[:,0:].astype(float)
+
+        # calcualte the linear model coefficents for each ticker
         b = self.linear_model
 
+        # get a np array containing dependent variables
         y_df = self.combined_df.drop(self.factors, axis=1)
         y_df = self.weights * y_df.loc[:, y_df.columns != 'Date']
         y = self.combined_df[self.factors].to_numpy()
+
+        # calcualte the estimated returns using the factor model
         result = y @ b.T
 
-        sorted_result = np.sort(result, axis=0)
-        individual_var = sorted_result[ci_99] #if this sorting individually?
+        # get the sorted fund return and get the return at the 99 percentile (99% VaR)
+        portfolio_returns = result.sum(axis=1)
+        sorted_portfolio_returns = np.sort(portfolio_returns)
+        ci_99 = int(round(sorted_portfolio_returns.size *.01,0))
+        var_1d = sorted_portfolio_returns[ci_99]
 
-        combined_result = np.zeros((np.shape(result)[0],np.shape(result)[1]+1))
-        hist_series = result.sum(axis=1)
-        combined_result[:,-1] = hist_series
-        combined_result[:,0:-1] = result
-        sorted_combined_result = combined_result[combined_result[:, -1].argsort()]
-        print('INDIVIDUAL VAR')
-        individual_var = np.sort(combined_result,axis=0)[ci_99]
-
-        sorted_hist_series = np.sort(hist_series)
-        var_1d = sorted_combined_result[ci_99]
-
+        # create the historical VaR series objects  
         chart_list = []
-        for idx, pl in enumerate(hist_series.tolist()):
-            row_dict = {}
-            row_dict['name'] = dates[idx]
-            row_dict['PL'] = pl
-            chart_list.append(row_dict)
-
-        chart_list_NEW = []
-        for idx, pl in enumerate(hist_series.tolist()):
+        for idx, pl in enumerate(portfolio_returns.tolist()):
             row_dict = {}
             row_dict['date'] = dates[idx]
             row_dict['as_of_date'] = '2023-12-08'
             row_dict['pl'] = pl
             row_dict['fund'] = self.fund
-            chart_list_NEW.append(row_dict)
+            chart_list.append(row_dict)
  
         self.HistVarSeries.objects.all().delete()
-        hist_var_series_objs = [self.HistVarSeries(**data) for data in chart_list_NEW]
+        hist_var_series_objs = [self.HistVarSeries(**data) for data in chart_list]
         self.HistVarSeries.objects.bulk_create(hist_var_series_objs)
-        self.MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='hist_var_result',value=individual_var[-1], fund=self.fund )
+        self.MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='hist_var_result',value=var_1d, fund=self.fund )
         
-        return {'var_1d':var_1d.tolist(), 'individual_var':individual_var.tolist(),'var_history':hist_series.tolist(), 'dates': dates,'chart_list':chart_list}
     
     def stress_tests(self):
+
 
         stresses = np.array([
           [.1, 0, 0, 0, 0, 0],
@@ -257,42 +250,6 @@ class Var():
         self.MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
 
         return {'stress_tests':combined_stress}
-        
-
-    
-    def factor_var(self):
-        
-        #perc_return_df = self.combined_df#.pct_change().dropna()#.reset_index()#self.perc_return(self.combined_df)
-        ci_99 = int(round(self.combined_df.iloc[:, 0].count() *.01,0))
-        data = {}
-        individual_var = {}
-
-        x_date = self.combined_df[self.factors].to_numpy()
-        x = x_date[:,0:].astype(float)
-
-        y_df = self.combined_df.drop(self.factors, axis=1)
-        y_df = self.weights * y_df.loc[:, y_df.columns != 'Date']
-
-        for ticker in y_df.columns:
-            y = y_df[ticker].to_numpy()
-            b = np.linalg.inv(x.T @ x) @ x.T @ y
-            result_list = []
-            for row in x_date:
-                result = row * b
-                result_list.append(result.item(0))
-            data[ticker] = result_list
-            var = sorted(result_list)[ci_99-1] 
-            individual_var[ticker] = var
-
-        date_list = [date for date in self.combined_df['Date']]
-        data['Date'] = date_list
-        result_df = pd.DataFrame.from_dict(data)
-        result_df['fund_return'] = result_df.sum(axis=1)
-        result_df = result_df.sort_values(by=['fund_return'])
-        var_1d = abs(result_df.iloc[ci_99]['fund_return'])
-        var_20d = var_1d * math.sqrt(20)
-        pl_history = result_df[['Date','fund_return']].to_json(orient="columns")
-        return {'var_1d':var_1d, 'individual_var':individual_var,'var_history':pl_history}
     
 
     def get_factors(self):
