@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import UserSerializer
 from django.contrib.auth.models import User
 from rest_framework import generics
+import jwt
 
 
 class CreateUserView(generics.CreateAPIView):

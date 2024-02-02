@@ -39,9 +39,15 @@ const Positions = (props) => {
     }
 
     const deletePosition = async (postionId) => {
+
+      const jwtToken = localStorage.getItem('authTokens') == null ? null : JSON.parse(localStorage.getItem('authTokens'))['access'];
+
         const deleteRequestOptions ={
             method:"DELETE",
-            headers:{"Content-Type":"application/json"},
+            headers:{
+              "Content-Type":"application/json",
+              "Authorization": `Bearer ${jwtToken}`
+            },
             body: {}
         }
         const FundsFromServer = await fetchData(`http://127.0.0.1:8000/api/position/${postionId}/`, deleteRequestOptions)

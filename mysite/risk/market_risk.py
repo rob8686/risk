@@ -2,10 +2,7 @@ import yfinance as yf
 import numpy as np
 import math
 import pandas as pd
-import pymongo
-import datetime
-import json
-import datetime as dt
+
 
 class Var():
     """
@@ -15,9 +12,12 @@ class Var():
     Methods:
     - _init__: Constructor for a market risk object.
     - get_var: Method runs markit risk calculations calculations.
-    - position_weights: Get a np array containing the percent of AUM of each posiitons. 
     - histogram: Create the histogram data and create HistogramBins objects.
-    - parametric_var: 
+    - parametric_var: Create the Parametric VaR data (VaR and correlation matrix) and create MarketRiskStatistics and MarketRiskCorrelation objects.
+    - calc_linear_model: Calcualte the coefficents of the linear model.
+    - factor_var: Calcualte the historical factor VaR and P&L timeseries.
+    - stress_tests: Calcualte the stress testing results.
+    - get_factors: Get the factor timeseries from Yahoo Finance and save and return it.
     """
     
 
@@ -49,7 +49,7 @@ class Var():
         self.risk_factor_df = self.get_factors()
         self.fx_converted_df.index = pd.to_datetime(self.fx_converted_df.index)
         self.combined_df = pd.merge(self.fx_converted_df,self.risk_factor_df, left_index=True, right_index=True).pct_change().dropna().reset_index()
-        self.weights = self.position_weights()
+        self.weights =  np.asarray([self.position_info[col][1] for col in self.fx_converted_df.columns])
         self.linear_model = self.calc_linear_model()
         self.tickers = self.fx_converted_df.columns
 
@@ -59,29 +59,14 @@ class Var():
         Method runs market risk calculations calculations.
 
         """
-        result = {}
-        x_date = self.combined_df[self.factors].to_numpy()
-        x = x_date[:,0:].astype(float)
+        
         self.MarketRiskStatistics.objects.filter().delete()
         self.HistogramBins.objects.all().delete()
         self.parametric_var()
         self.factor_var()
-        result['tickers'] = list(self.tickers) 
-        #result['factor_var'] = self.factor_var()
-        result['stress_tests'] = self.stress_tests()
+        self.stress_tests()
         self.histogram()
-        return result
 
-
-    def position_weights(self):
-        """
-        Method runs markit risk calculations calculations.
-        YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
-
-        """
-
-        return np.asarray([self.position_info[col][1] for col in self.fx_converted_df.columns])
-    
     
     def histogram(self):
         """
@@ -106,7 +91,6 @@ class Var():
         combined = list(map(create_dict, hist.tolist(), bin_edges.tolist()))
         histogram_objs = [self.HistogramBins(**data) for data in combined]
         self.HistogramBins.objects.bulk_create(histogram_objs)
-        return list(combined)
 
 
     def parametric_var(self):
@@ -145,7 +129,7 @@ class Var():
     
     def calc_linear_model(self):
         """
-        Calcualted the coefficents of the linear model 
+        Calcualte the coefficents of the linear model. 
 
         Returns:
         numpy.ndarray: the factor model coefficents.
@@ -173,10 +157,7 @@ class Var():
     
     def factor_var(self):
         """
-        Calcualted the coefficents of the linear model 
-
-        Returns:
-        numpy.ndarray: the factor model coefficents.
+        Calcualte the historical factor VaR and P&L timeseries.
 
         """
         
@@ -216,8 +197,12 @@ class Var():
         
     
     def stress_tests(self):
+        """
+        Calcualte the stress testing results.
 
+        """
 
+        # array of stress testing parameters 
         stresses = np.array([
           [.1, 0, 0, 0, 0, 0],
           [.05, 0, 0, 0, 0, 0],
@@ -229,32 +214,30 @@ class Var():
           [0, 0, 0, -.1, 0, 0],
          ])
         
+        # calcualte the linear model coefficents for each ticker
         b = self.linear_model
 
+        # calcualte the returns for each stress test
         result = stresses @ b.T
+
+        # sum the stress testing results for each ticker
         stress_result = result.sum(axis=1).tolist()
+
+        # create the stress testing objects
         stress_names = ['Equity up 10%', 'Equity up 5%', 'Equity down 10%', 'Equity down 5%', 
                         'Interest Rates up 10%','Interest Rates down 10%', 'Dollar up 10%','Dollar down 10%']
         
-
-        def create_dict(stress_names, stress_result):
-            return {'stress': stress_names,'result':stress_result}
-
-        def create_dict_NEW(stress_names, stress_result):
+        def create_stress_test_obj(stress_names, stress_result):
             return {'as_of_date':'2023-12-08','catagory':'stress_test','type': stress_names,'value':stress_result,'fund':self.fund}
 
-        combined_stress = list(map(create_dict, stress_names, stress_result))
-
-        combined_stress_new = list(map(create_dict_NEW, stress_names, stress_result))
+        combined_stress_new = list(map(create_stress_test_obj, stress_names, stress_result))
         market_risk_stat_objs = [self.MarketRiskStatistics(**data) for data in combined_stress_new]
         self.MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
 
-        return {'stress_tests':combined_stress}
     
-
     def get_factors(self):
         """
-        Get the factor timeseries from Yahoo Finance and save and return it
+        Get the factor timeseries from Yahoo Finance and save and return it.
 
         Returns:
         pandas.DataFrame: df containing factor data 
@@ -263,10 +246,8 @@ class Var():
 
         factor_data = self.FactorData.objects.filter(as_of_date='2024-01-23')
 
-        # if factor data for the as of date is already in the DB use that otherwise get data from yfinance 
-        if factor_data.count() > 0:
-            factor_data_df = pd.DataFrame(factor_data.values('date','spy','tnx','bz','nyicdx','igln','vix'))
-        else:
+        # if factor data for the as of date is not already in the DB retrieve the data from yfinance 
+        if factor_data.count() == 0:
             ticker_string = ''.join([ticker +' ' for ticker in ['SPY','^TNX','BZ=F','^NYICDX','IGLN.L','^VIX']])
 
             data = yf.download(tickers=ticker_string, period="1y",
@@ -283,7 +264,8 @@ class Var():
             factor_data_objs = [self.FactorData(**obj) for obj in data]
             self.FactorData.objects.bulk_create(factor_data_objs)
             factor_data = self.FactorData.objects.filter(as_of_date='2024-01-23')
-            factor_data_df = pd.DataFrame(factor_data.values('date','spy','tnx','bz','nyicdx','igln','vix'))
+        
+        factor_data_df = pd.DataFrame(factor_data.values('date','spy','tnx','bz','nyicdx','igln','vix'))
 
         factor_data_df = factor_data_df.set_index('date')
         factor_data_df.index.rename('Date',inplace=True)

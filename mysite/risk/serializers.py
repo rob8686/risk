@@ -15,7 +15,20 @@ class FundSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Fund
-        fields = '__all__'
+        #fields = '__all__'
+        fields = ('id','name','currency','aum','benchmark','liquidity_limit','liquidity_status','performance_status','last_date')
+
+
+    def create(self, validated_data):
+        """
+        Creates a position instance. 
+        If the related security already exists use that or else use create a new security object.
+        """
+        validated_data['owner'] = self.context['request'].user
+        obj = Fund.objects.create(**validated_data)
+        return obj       
+        #return Fund(**validated_data)
+
 
 class SecuritySerializer(serializers.ModelSerializer):
     """
@@ -71,11 +84,11 @@ class CreatePositionSerializer(serializers.ModelSerializer):
         else:
             yf_ticker = yf.Ticker(ticker)
             ticker_info = yf_ticker.info
+
             if ticker_info['quoteType'] == 'ETF':
                 sector, industry  = 'ETF', 'ETF'
             else:
-                sector, industry = ticker_info['sector'], industry=ticker_info['industry']
-                
+                sector, industry = ticker_info['sector'], ticker_info['industry']
             # this is the lenght of an empty response
             if len(ticker_info) > 3:
                 security = Security.objects.create(
@@ -85,6 +98,7 @@ class CreatePositionSerializer(serializers.ModelSerializer):
                 
                 security_currency = ticker_info['currency']
                 validated_data['security'] =  security
+
         # add the remaining Position fields to the data 
         if isinstance(validated_data['security'], Security):
             closing_price = yf.Ticker(ticker).history(period="1d")['Close']

@@ -8,23 +8,20 @@ from .serializers import FundSerializer,PositionSerializer, CreatePositionSerial
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, BasePermission, SAFE_METHODS
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from requests.exceptions import HTTPError
-
+from django.contrib.auth.models import User
+import json
 
 class PositionWritePermission(BasePermission):
-    message = 'Only user who created the fund can add positions'
+    """
+    Object-level permission to only allow the fund owner to add or delete positions.
+    """
 
-    def has_object_permisison(self, request, view, obj):
+    message = 'Only user who created the fund can add / delete positions'
+
+    def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
             return True
-        return request.user == obj.namne
-    
-    def has_permission(self, request, view):
-        user = request.user
-        user_name = user.username
-
-        if request.method in SAFE_METHODS:
-            return True
-        return True
+        return request.user == obj.fund.owner
 
 
 class FundViewSet(viewsets.ModelViewSet):
@@ -33,7 +30,6 @@ class FundViewSet(viewsets.ModelViewSet):
 
     Provides CRUD operations (Create, Read, Update, Delete) for the Fund model.
     """
-
     permission_classes = [IsAuthenticatedOrReadOnly]
     authentication_classes = [JWTAuthentication]
     queryset = Fund.objects.all()
@@ -47,14 +43,13 @@ class PositionViewSet(viewsets.ModelViewSet):
     Provides CRUD operations (Create, Read, Update, Delete) for the Position model.
     """
     queryset = Position.objects.all()
+    authentication_classes = [JWTAuthentication]
     permission_classes = [PositionWritePermission]
 
     def get_queryset(self,*args, **kwargs):
         """
         Overrides get_queryset to filter the queryset for the related fund.
         """
-
-        #if there is a fund with the request filter positions for just that fund
         fund = self.request.GET.get('fund')
         if fund:
             return Position.objects.filter(fund=fund)
@@ -71,10 +66,19 @@ class PositionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Overrides create to include custom error handling.
+        Overrides create to include custom permissions and error handling.
         """
+
+        # only allow the fund ownwe to create a position in a fund
+        fund_id = json.loads(request.body.decode('utf-8'))['fund']
+        fund_owner = Fund.objects.filter(id=fund_id)[0].owner
+
+        if request.user != fund_owner:
+            return Response('Only fund owner can create positions.', status.HTTP_401_UNAUTHORIZED, template_name=None, headers=None, content_type=None)
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True) # review
+
         try:
             self.perform_create(serializer)
         except ValueError:

@@ -4,6 +4,7 @@ from django.db.models import Max, Min, Sum
 import pandas as pd
 import math
 from .run_risk import RunRisk
+from django.contrib.auth.models import User
 
 
 class Security(models.Model):
@@ -81,7 +82,8 @@ class Fund(models.Model):
         max_length=200
     )
     liquidity_status = models.CharField(max_length=200, default='none')
-    performance_status = models.CharField(max_length=200, default='none')   
+    performance_status = models.CharField(max_length=200, default='none')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self):
         """
