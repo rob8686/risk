@@ -104,14 +104,21 @@ class Fund(models.Model):
         """
         return Position.objects.filter(fund=self.id).latest('price_date').price_date
 
-    def run_risk(self):
+    def run_risk(self, date):
         """
         Run the risk analytics for the fund.
         """   
+
         positions = Position.objects.filter(fund=self)
-        RunRisk(self, positions, PerformanceHistory, PerformancePivots, 
-                LiquditiyResult, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData, FxData).run_risk()
+        risk_result = RunRisk(self, positions, date, PerformanceHistory, PerformancePivots, 
+                HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData, FxData).run_risk()
         
+        # create liqudity result objects and calculate liquidity status 
+        LiquditiyResult.objects.filter(fund=self).filter(as_of_date=date).delete()
+        liquditiy_result_objs = [LiquditiyResult(**data) for data in risk_result[0]]
+        LiquditiyResult.objects.bulk_create(liquditiy_result_objs)
+        LiquditiyResult.objects.liquidity_stats(self.id)
+
     def refresh_portfolio(self, yf_data):
         """
         Update position objects related to the fund with the most recent data.
@@ -487,7 +494,7 @@ class LiquditiyResult(models.Model):
         - String: the name of the liquditiy result. 
         """
 
-        return str(self.fund) + ' ' + self.as_of_date.strftime('%Y-%m-%d') + ' ' + self.stress
+        return str(self.fund) + ' ' + self.as_of_date + ' ' + self.stress
 
 class CumulativeLiquditiyResult(models.Model):
     """

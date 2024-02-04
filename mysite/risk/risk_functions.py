@@ -135,7 +135,7 @@ class Liquidity:
     - calc_liq_stats: Calcualte the amount disposed in each time bucket and creates LiquditiyResult objects with the result. 
     """
 
-    def __init__(self, yf_data, position_info, fund, LiquditiyResult):
+    def __init__(self, yf_data, position_info, fund, as_of_date):
         """
         Constructor for a liquidity object.
 
@@ -144,7 +144,7 @@ class Liquidity:
             yf_data (pandas.DataFrame): Historical data containing volume data for each position.  
             position_info (dict): Dict containing info (quantity, percent of AUM, etc.) for each position. 
             fund (Fund): A fund object.
-            LiquditiyResult (LiquditiyResult): A LiquditiyResult object. 
+            result_list (list): list of dicts containing data to create Liquidity Result objects.
 
         """
 
@@ -152,26 +152,27 @@ class Liquidity:
         self.average_volumne = yf_data['Volume'].reset_index().mean().to_dict()
         self.liq_limit = fund.liquidity_limit
         self.fund = fund
-        self.LiquditiyResult = LiquditiyResult
+        self.as_of_date = as_of_date
+        self.result_list = []
 
 
     def get_liquidity(self):
         """
         Calculates liquidity statistics under normal and stressed liquidity conditions (100%, 50% and 30% of ADV). 
 
+        Returns:
+        - list: list of dicts containing data to create Liquidity Result objects.
+
         """
         
-        self.LiquditiyResult.objects.all().delete() 
         for liquidity_stress_percent in [['100%',1],['50%',.5],['30%',.3]]:
             self.calc_liq_stats(liquidity_stress_percent[1])
 
-        # update fund liquidity status
-        self.LiquditiyResult.objects.liquidity_stats(self.fund.id)
-
+        return self.result_list
 
     def calc_liq_stats(self,liquidity_stress_percent):
         """
-        Calcualte the amount disposed in each time bucket and creates LiquditiyResult objects with the result. 
+        Calcualte the amount disposed in each time bucket which is used to creates LiquditiyResult objects. 
 
         """
 
@@ -189,7 +190,7 @@ class Liquidity:
             days_to_liquidate = math.ceil(quantity / quantity_disposed_per_day)
 
             bucket_list = ['1', '7', '30', '90', '180', '365', '366']
-            bucket_dict = {'day_1':0, 'day_7':0, 'day_30':0, 'day_90':0, 'day_180':0, 'day_365':0, 'day_366':0,'as_of_date':'2023-12-08','type':ticker, 'stress':str(int(liquidity_stress_percent*100))+'%','fund':self.fund}
+            bucket_dict = {'day_1':0, 'day_7':0, 'day_30':0, 'day_90':0, 'day_180':0, 'day_365':0, 'day_366':0,'as_of_date':self.as_of_date,'type':ticker, 'stress':str(int(liquidity_stress_percent*100))+'%','fund':self.fund}
 
             # for the amount disposed each day determine which liquidity bucket the amount should go in  
             for day in range(1,days_to_liquidate+1):
@@ -206,8 +207,9 @@ class Liquidity:
                     if day <= int(int_days):
                         if day  > int(bucket_list[num - 2]) or int_days == '1': 
                             bucket_dict[days] = bucket_dict[days] + aum_disposed
+
+            self.result_list.append(bucket_dict)
             
-            self.LiquditiyResult.objects.create(**bucket_dict)
   
      
 class Performance:
@@ -223,7 +225,7 @@ class Performance:
 
     """
 
-    def __init__(self, fx_converted_df, position_info_dict, fund, PerformanceHistory, PerformancePivots):
+    def __init__(self, fx_converted_df, position_info_dict, fund, as_of_date, PerformanceHistory, PerformancePivots):
         """
         Constructor for a performance object.
 
@@ -241,6 +243,7 @@ class Performance:
         self.yf_data = fx_converted_df
         self.percent_return_df = self.yf_data.pct_change()
         self.fund = fund
+        self.as_of_date = as_of_date
         self.benchmark = self.fund.benchmark
         self.benchmark_data = self.yf_data[self.benchmark]
         self.benchmark_return = self.percent_return_df[self.benchmark]
@@ -293,6 +296,8 @@ class Performance:
         weighted_return_df['as_of_date'] = '2023-12-08'
         weighted_return_df['fund'] = self.fund
         weighted_return_dict = weighted_return_df.to_dict('records')
+        print('weighted_return_dict weighted_return_dict weighted_return_dict')
+        print(weighted_return_dict)
         performance_history_objs = [self.PerformanceHistory(**data) for data in weighted_return_dict]
         self.PerformanceHistory.objects.all().delete()
         self.PerformanceHistory.objects.bulk_create(performance_history_objs)

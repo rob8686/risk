@@ -19,14 +19,17 @@ const Funds = (props) => {
     getFunds()
   }, [location]) 
 
-  const refresh = async (fundId, fundCurrency,fundBenchmark,requestOptions = '') => {
+  const refresh = async (fundId, fundCurrency, last_date, requestOptions = '') => {
+    console.log('DATEEEEEEEEEEEEEEEEEEEEEEEEEE')
+    console.log(last_date)
+    console.log(fundCurrency)
     //const response = await props.fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
-    const response = await fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}`, requestOptions)
+    const response = await fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${last_date}`, requestOptions)
     getFunds()
   }  
 
-  const handleClick = (event, fundId, fundCurrency) => {
-    refresh(fundId, fundCurrency)
+  const handleClick = (event, fundId, fundCurrency, last_date) => {
+    refresh(fundId, fundCurrency, last_date)
   }
 
 const getFunds = async () => {
@@ -70,7 +73,7 @@ const fetchData = async (url, requestOptions = '') => {
     )}, 
     {Header: 'Run Risk', accessor: row => 'Run',
     Cell: ({ cell }) => (
-      <Button value='Run' onClick={(e) => handleClick(e,cell.row.values.id,cell.row.values.currency)}>
+      <Button value='Run' onClick={(e) => handleClick(e,cell.row.values.id,cell.row.values.currency,cell.row.values.last_date)}>
         Run
       </Button>
     )},

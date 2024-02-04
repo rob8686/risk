@@ -22,7 +22,7 @@ class RunRisk():
 
     """
 
-    def __init__(self, fund, positions, PerformanceHistory, PerformancePivots, LiquditiyResult, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData, FxData):
+    def __init__(self, fund, positions, as_of_date, PerformanceHistory, PerformancePivots, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData, FxData):
         """
         Constructor for a run risk object.
 
@@ -36,12 +36,12 @@ class RunRisk():
         self.positions = positions
         self.benchmark = self.fund.benchmark
         self.fund_ccy = self.fund.currency
+        self.as_of_date = as_of_date
         # Update!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.benchmark_currency = {'SPY':'USD'}
         self.ticker_currency_list = self.get_positions_data()
         self.position_info = self.get_position_info()
         self.yf_data = self.get_yf_data()
-        self.LiquditiyResult = LiquditiyResult
         self.PerformanceHistory = PerformanceHistory
         self.PerformancePivots = PerformancePivots
         self.HistVarSeries = HistVarSeries
@@ -58,15 +58,17 @@ class RunRisk():
 
         fx_converted_df = self.fx_convert()
         self.fund.refresh_portfolio(fx_converted_df[0])
-        Performance(fx_converted_df[1], self.position_info, self.fund, self.PerformanceHistory, self.PerformancePivots).get_performance()
+        Performance(fx_converted_df[1], self.position_info, self.fund, self.as_of_date, self.PerformanceHistory, self.PerformancePivots).get_performance()
 
         if self.benchmark not in self.position_info.keys():
             self.yf_data.drop(columns=[self.benchmark],inplace=True, level=1)
             fx_converted_df[1].drop(columns=[self.benchmark],inplace=True)
 
-        Liquidity(self.yf_data,self.position_info, self.fund, self.LiquditiyResult).get_liquidity()
-        Var(fx_converted_df[1], self.position_info, self.fund, self.HistVarSeries, self.MarketRiskStatistics, 
+        liq_result = Liquidity(self.yf_data,self.position_info, self.fund, self.as_of_date).get_liquidity()
+        Var(fx_converted_df[1], self.position_info, self.fund, self.as_of_date, self.HistVarSeries, self.MarketRiskStatistics, 
             self.HistogramBins, self.MarketRiskCorrelation, self.FactorData).get_var()
+        
+        return [liq_result]
         
         
     def get_positions_data(self):

@@ -168,12 +168,13 @@ class GetRiskData(APIView):
     API view that runs the risk calcualtions.
     """
 
-    def get(self, request, fund_id, fund_currency,format='json'):
+    def get(self, request, fund_id, fund_currency,date, format='json'):
         """
         RUn risk calcualtions for inputed fund.
         """ 
+
         fund = Fund.objects.filter(id=fund_id)[0]
-        fund.run_risk()
+        fund.run_risk(date)
         return Response(status=status.HTTP_200_OK)
 
         

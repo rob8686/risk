@@ -21,7 +21,7 @@ class Var():
     """
     
 
-    def __init__(self, fx_converted_df, position_info, fund, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData):
+    def __init__(self, fx_converted_df, position_info, fund, as_of_date, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData):
         """
         Constructor for a VaR object.
 
@@ -38,6 +38,7 @@ class Var():
 
         """
         self.fund = fund
+        self.as_of_date = as_of_date
         self.HistVarSeries = HistVarSeries
         self.MarketRiskStatistics = MarketRiskStatistics
         self.HistogramBins = HistogramBins
@@ -100,7 +101,7 @@ class Var():
         """
 
         returns = self.fx_converted_df.pct_change().dropna().to_numpy()
-        weights = self.position_weights()
+        weights = self.weights
  
         correl_list =[]
         self.MarketRiskCorrelation.objects.all().delete()  
