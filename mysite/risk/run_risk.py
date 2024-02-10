@@ -22,7 +22,7 @@ class RunRisk():
 
     """
 
-    def __init__(self, fund, positions, as_of_date, PerformanceHistory, PerformancePivots, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData, FxData):
+    def __init__(self, fund, positions, as_of_date, factor_data, fx_data, FxData):
         """
         Constructor for a run risk object.
 
@@ -30,6 +30,8 @@ class RunRisk():
         ----------
             fund (Fund) : a fund object.
             positions list(Posiiton): list of related position.
+            as_of_date (str): the date the risk results will be generated for.
+            factor_data (pandas.DataFrame); historical factor data.
         """
 
         self.fund = fund
@@ -37,38 +39,37 @@ class RunRisk():
         self.benchmark = self.fund.benchmark
         self.fund_ccy = self.fund.currency
         self.as_of_date = as_of_date
+        self.factor_data = factor_data
+        self.fx_data = fx_data
         # Update!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         self.benchmark_currency = {'SPY':'USD'}
         self.ticker_currency_list = self.get_positions_data()
         self.position_info = self.get_position_info()
         self.yf_data = self.get_yf_data()
-        self.PerformanceHistory = PerformanceHistory
-        self.PerformancePivots = PerformancePivots
-        self.HistVarSeries = HistVarSeries
-        self.MarketRiskStatistics = MarketRiskStatistics
-        self.HistogramBins = HistogramBins
-        self.MarketRiskCorrelation = MarketRiskCorrelation
-        self.FactorData = FactorData
         self.FxData = FxData
 
     def run_risk(self):
         """
         Method runs risk calculations for a fund.
+
+        Returns:
+        - list: list of dicts containing data to create risk result objects.
         """
 
         fx_converted_df = self.fx_convert()
         self.fund.refresh_portfolio(fx_converted_df[0])
-        Performance(fx_converted_df[1], self.position_info, self.fund, self.as_of_date, self.PerformanceHistory, self.PerformancePivots).get_performance()
+
+        performance_result = Performance(fx_converted_df[1], self.position_info, self.fund, self.as_of_date).get_performance()
 
         if self.benchmark not in self.position_info.keys():
             self.yf_data.drop(columns=[self.benchmark],inplace=True, level=1)
             fx_converted_df[1].drop(columns=[self.benchmark],inplace=True)
 
         liq_result = Liquidity(self.yf_data,self.position_info, self.fund, self.as_of_date).get_liquidity()
-        Var(fx_converted_df[1], self.position_info, self.fund, self.as_of_date, self.HistVarSeries, self.MarketRiskStatistics, 
-            self.HistogramBins, self.MarketRiskCorrelation, self.FactorData).get_var()
+
+        var_result = Var(fx_converted_df[1], self.position_info, self.fund, self.as_of_date, self.factor_data).get_var()
         
-        return [liq_result]
+        return [liq_result, performance_result, var_result]
         
         
     def get_positions_data(self):
@@ -123,7 +124,7 @@ class RunRisk():
         """
 
         today = datetime.today().strftime('%Y-%m-%d') # data should not include today
-        fx_data = self.get_fx_data()
+        fx_data = self.fx_data
         fx_data.index = fx_data.index.astype(str)
         combined_df = self.yf_data['Close'].merge(fx_data, how='outer',left_index=True, right_index=True)
         combined_df = combined_df[combined_df.index < today].fillna(method="ffill").dropna()

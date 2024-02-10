@@ -5,6 +5,9 @@ import pandas as pd
 import math
 from .run_risk import RunRisk
 from django.contrib.auth.models import User
+import yfinance as yf
+import requests
+import time
 
 
 class Security(models.Model):
@@ -109,15 +112,56 @@ class Fund(models.Model):
         Run the risk analytics for the fund.
         """   
 
+
+        MarketRiskStatistics.objects.filter(fund=self).filter(as_of_date=date).delete()
+        HistVarSeries.objects.filter(fund=self).filter(as_of_date=date).delete()
+
         positions = Position.objects.filter(fund=self)
-        risk_result = RunRisk(self, positions, date, PerformanceHistory, PerformancePivots, 
-                HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData, FxData).run_risk()
+
+        factor_data = FactorData.objects.get_factors(date)
+
+        currencies = set(positions.values_list('security__currency', flat=True))
+        fx_data = FxData.objects.get_fx(currencies,self.currency, date)
+
+        risk_result = RunRisk(self, positions, date, factor_data, fx_data, FxData).run_risk()
         
-        # create liqudity result objects and calculate liquidity status 
+        # create liqudity result objects and update the liquidity status 
         LiquditiyResult.objects.filter(fund=self).filter(as_of_date=date).delete()
         liquditiy_result_objs = [LiquditiyResult(**data) for data in risk_result[0]]
         LiquditiyResult.objects.bulk_create(liquditiy_result_objs)
         LiquditiyResult.objects.liquidity_stats(self.id)
+
+        # create performance history objects and update the performance status
+        PerformanceHistory.objects.filter(fund=self).filter(as_of_date=date).delete()
+        performance_history_objs = [PerformanceHistory(**data) for data in risk_result[1][0]]
+        PerformanceHistory.objects.bulk_create(performance_history_objs)
+        PerformanceHistory.objects.performance_stats(self.id)
+
+        # create performance pivots objecte
+        PerformancePivots.objects.filter(fund=self).filter(as_of_date=date).delete()
+        performance_pivot_objs = [PerformancePivots(**data) for data in risk_result[1][1]]
+        PerformancePivots.objects.bulk_create(performance_pivot_objs)
+
+        HistogramBins.objects.filter(fund=self).filter(as_of_date=date).delete()
+        histogram_objs = [HistogramBins(**data) for data in risk_result[2][0]]
+        HistogramBins.objects.bulk_create(histogram_objs)
+
+        MarketRiskCorrelation.objects.filter(fund=self).filter(as_of_date=date).delete()
+        market_risk_correl_objs = [MarketRiskCorrelation(**data) for data in risk_result[2][1][1]]
+        MarketRiskCorrelation.objects.bulk_create(market_risk_correl_objs)
+
+
+        MarketRiskStatistics.objects.create(as_of_date=date, catagory='var_result' ,type='parametric_var',value=risk_result[2][1][0], fund=self)
+        MarketRiskStatistics.objects.create(as_of_date=date, catagory='var_result' ,type='hist_var_result',value=risk_result[2][2][0], fund=self)
+
+        HistVarSeries.objects.filter(fund=self).filter(as_of_date=date).delete()
+        hist_var_series_objs = [HistVarSeries(**data) for data in risk_result[2][2][1]]
+        HistVarSeries.objects.bulk_create(hist_var_series_objs)
+
+        #combined_stress_new = list(map(create_stress_test_obj, stress_names, stress_result))
+        market_risk_stat_objs = [MarketRiskStatistics(**data) for data in risk_result[2][3]]
+        MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
+
 
     def refresh_portfolio(self, yf_data):
         """
@@ -636,11 +680,8 @@ class CorrelationManager(models.Manager):
         Returns:
         - list: list of list containing the tickers and correlation matrix.
         """
-        print('Correl Data')
         data = self.filter(fund__pk=fund_id).values('ticker','to','value')
-        print(data)
         data_df = pd.DataFrame(data)
-        print(data_df)
         table = pd.pivot_table(data_df, values='value', index=['ticker'], columns=['to'], aggfunc="sum")
         correl_matrix = [table[col].tolist() for col in table.columns]
         tickers = list(table.columns)
@@ -680,6 +721,54 @@ class MarketRiskCorrelation(models.Model):
 
         return str(self.fund) + ' ' + self.as_of_date.strftime('%Y-%m-%d') + ' ' + self.ticker + ' ' + self.to
 
+class FactorManager(models.Manager):
+    """
+    Custom manager for the FactorData model.
+
+    Methods:
+    - get_factors: Get the factor timeseries from Yahoo Finance and save and return it.
+    """
+
+    def get_factors(self, as_of_date):
+        """
+        Get the factor timeseries from Yahoo Finance and save and return it.
+            
+        Parameters:
+        - as_of_date (str): the date the factor data will be retrieved for.
+
+        Returns:
+        pandas.DataFrame: df containing factor data 
+
+        """
+
+        factor_data = FactorData.objects.filter(as_of_date=as_of_date)
+
+        # if factor data for the as of date is not already in the DB retrieve the data from yfinance 
+        if factor_data.count() == 0:
+            ticker_string = ''.join([ticker +' ' for ticker in ['SPY','^TNX','BZ=F','^NYICDX','IGLN.L','^VIX']])
+
+            data = yf.download(tickers=ticker_string, period="1y",
+                interval="1d", group_by='column',auto_adjust=True, prepost=False,threads=True,proxy=None)
+
+            data = data['Close'].fillna(method="ffill").dropna().reset_index()
+            data['as_of_date'] = as_of_date
+            data.columns = [col.lower() for col in data.columns]
+            data = data.rename(columns={"bz=f": "bz", "igln.l": "igln","^nyicdx": "nyicdx","^tnx": "tnx","^vix": "vix"}).to_dict('records')
+            #DELTE THEIS DELTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            #FactorData.objects.all().delete()
+
+            # Create and retrieve factor data objects
+            factor_data_objs = [FactorData(**obj) for obj in data]
+            FactorData.objects.bulk_create(factor_data_objs)
+            factor_data = FactorData.objects.filter(as_of_date=as_of_date)
+        
+        factor_data_df = pd.DataFrame(factor_data.values('date','spy','tnx','bz','nyicdx','igln','vix'))
+
+        factor_data_df = factor_data_df.set_index('date')
+        factor_data_df.index.rename('Date',inplace=True)
+
+        return factor_data_df
+
 class FactorData(models.Model):
     """
     Model representing a factor data on a speific date.
@@ -707,6 +796,10 @@ class FactorData(models.Model):
     igln = models.FloatField(default=0)
     vix = models.FloatField(default=0)
 
+    # Use the custom manager
+    objects = FactorManager()
+
+
     def __str__(self):
         """
         Get a string representation of the factor data.
@@ -716,6 +809,105 @@ class FactorData(models.Model):
         """
 
         return self.date.strftime('%Y-%m-%d')
+
+   
+class FxDataManager(models.Manager):
+    """
+    Custom manager for the FactorData model.
+
+    Methods:
+    - get_factors: Get the factor timeseries from Yahoo Finance and save and return it.
+    """
+
+    def fx_from_api(self, from_currency,to_currency):
+        """
+        Calls API for requested currency and returns the FX data.
+
+        Parameters
+        ---------- 
+            from_currency (str): A currency code
+
+        Returns:
+        dict: dict containing FX data. 
+        """
+
+        apikey='2M3IEELDCP3HPW2F'
+        url = f'https://www.alphavantage.co/query?function=FX_DAILY&from_symbol={from_currency}&to_symbol={to_currency}&outputsize=full&apikey={apikey}'
+        r = requests.get(url)
+        data = r.json()
+        return data
+
+    def get_fx(self, currency_set,to_currency, as_of_date, date=None):
+        """
+        Retrieve FX data for each currency in the inputed set of currency codes.
+
+        Parameters
+        ---------- 
+            currency_set (set) : A set of strings which contains currency codes  
+            to_currency (str): A currency code 
+            date (str, optional): A string representing a date. If not provided, the default value is None.
+
+        Returns:
+        - pandas.DataFrame: If no date parameter is entered, returns a df containing historical FX date.
+        - float: If a date parameter is entered, returns the FX rate on that date.
+
+        """
+
+        df = pd.DataFrame() 
+        count = 1
+        for currency in currency_set:
+            
+            # Don't need to get data for the fund currency
+            if currency != to_currency:
+
+                fx_query = FxData.objects.filter(as_of_date=as_of_date).filter(to_currency=to_currency).filter(from_currency=currency)
+
+                #if the currecny is already in the DB for the as of date retrieve the FX date from the DB
+                if fx_query.count() > 0:
+                    fx_df =  pd.DataFrame(fx_query.values('date', 'value')).set_index('date')
+                    fx_df = fx_df.rename(columns={"value": currency})
+
+                # Else call the data through trh Alpha Vantange API
+                else:
+                    # 5 API call per minute limit
+                    if count % 5 == 0:
+                        time.sleep(60)
+
+                    fx_json = self.fx_from_api(currency,to_currency)
+
+                    # Check for error messages in the API response 
+                    if 'Note' in fx_json:
+                        return 'API Limit Reached'
+                    if 'Error Message' in fx_json:
+                        return 'Invalid Currency Code'
+                    
+                    # If a date parameter is entered, returns the FX rate on that date.
+                    if date != None:
+                        return fx_json['Time Series FX (Daily)'][date]['4. close']
+                    
+                    fx_df =  pd.DataFrame.from_dict(fx_json['Time Series FX (Daily)']).T['4. close']
+                    fx_df = fx_df.astype('float')
+                    fx_df = fx_df.rename('value')
+                    fx_df = fx_df.to_frame()
+                    fx_df.index.rename('date',inplace=True)
+                    fx_df['as_of_date'] = as_of_date
+                    fx_df['to_currency'] = to_currency
+                    fx_df['from_currency'] = currency
+
+                    # Create the FxData object 
+                    fx_data_objs = [FxData(**data) for data in fx_df.reset_index().to_dict('records')]
+                    FxData.objects.filter(to_currency=to_currency).filter(from_currency=currency).delete()
+                    FxData.objects.bulk_create(fx_data_objs)
+
+                    fx_df.rename(columns={"value": currency}, inplace=True)
+                    fx_df = fx_df[currency]
+
+                df = pd.concat([df, fx_df],axis=1)
+                count = count + 1
+
+        df = df.rename_axis('Date')
+
+        return df
 
 class FxData(models.Model):
     """
@@ -737,6 +929,9 @@ class FxData(models.Model):
     to_currency = models.CharField(max_length=3)
     from_currency = models.CharField(max_length=3) 
     value = models.FloatField(default=0)
+
+    # Use the custom manager
+    objects = FxDataManager()
 
     def __str__(self):
         """

@@ -126,7 +126,7 @@ class GetFx:
 
 class Liquidity:
     """
-    Class calcualtes liquidity statistics for a fund
+    Class calcualtes liquidity statistics for a fund.
     ...
 
     Methods:
@@ -141,15 +141,16 @@ class Liquidity:
 
         Parameters
         ----------
-            yf_data (pandas.DataFrame): Historical data containing volume data for each position.  
-            position_info (dict): Dict containing info (quantity, percent of AUM, etc.) for each position. 
-            fund (Fund): A fund object.
-            result_list (list): list of dicts containing data to create Liquidity Result objects.
+            - yf_data (pandas.DataFrame): Historical data containing volume data for each position.  
+            - position_info (dict): Dict containing info (quantity, percent of AUM, etc.) for each position. 
+            - fund (Fund): A fund object.
+            - result_list (list): list of dicts containing data to create Liquidity Result objects.
+            - as_of_date (str): the date the risk results will be generated for.
 
         """
 
         self.positions = position_info
-        self.average_volumne = yf_data['Volume'].reset_index().mean().to_dict()
+        self.average_volumne = yf_data['Volume'].mean().to_dict()
         self.liq_limit = fund.liquidity_limit
         self.fund = fund
         self.as_of_date = as_of_date
@@ -222,10 +223,11 @@ class Performance:
     - get_performance: Method runs performance calculations.
     - historical_data: Calcualtes fund and benchmark history and creates PerformanceHistory objects.
     - pivots: Calculates performance contribution by currency and sector. 
+    - as_of_date (str): the date the risk results will be generated for.
 
     """
 
-    def __init__(self, fx_converted_df, position_info_dict, fund, as_of_date, PerformanceHistory, PerformancePivots):
+    def __init__(self, fx_converted_df, position_info_dict, fund, as_of_date):
         """
         Constructor for a performance object.
 
@@ -234,8 +236,6 @@ class Performance:
             fx_converted_df (pandas.DataFrame): Historical data containing the closing price for each position.  
             position_info_dict (dict): Dict containing info (sector, currency, etc.) for each position. 
             fund (Fund): A fund object.
-            PerformanceHistory (PerformanceHistory): A PerformanceHistory object.
-            PerformancePivots (PerformancePivots): A PerformancePivots object. 
 
         """
 
@@ -247,26 +247,30 @@ class Performance:
         self.benchmark = self.fund.benchmark
         self.benchmark_data = self.yf_data[self.benchmark]
         self.benchmark_return = self.percent_return_df[self.benchmark]
-        self.PerformanceHistory = PerformanceHistory
-        self.PerformancePivots = PerformancePivots
 
 
     def get_performance(self):
         """
         Method runs performance calculations.
 
+        Returns:
+        - list: list of list of dicts containing data to create performance related objects.
+
         """
         
-        self.pivots()
-        self.historical_data()
+        pivot_data = self.pivots()
+        hist_data = self.historical_data()
 
-        # update performance status 
-        self.PerformanceHistory.objects.performance_stats(self.fund.id)
+        return [hist_data, pivot_data]
 
 
     def historical_data(self):
         """
-        Calcualtes fund and benchmark history and creates PerformanceHistory objects. 
+        Calcualtes fund and benchmark history. 
+
+
+        Returns:
+        - list: list of dicts containing data to create performance history objects.
 
         """
 
@@ -293,19 +297,19 @@ class Performance:
 
         weighted_return_df = weighted_return_df[['fund_history','benchamrk_history']].reset_index()
         weighted_return_df.rename(columns={"Date": "date"}, inplace=True)
-        weighted_return_df['as_of_date'] = '2023-12-08'
+        weighted_return_df['as_of_date'] = self.as_of_date
         weighted_return_df['fund'] = self.fund
         weighted_return_dict = weighted_return_df.to_dict('records')
-        print('weighted_return_dict weighted_return_dict weighted_return_dict')
-        print(weighted_return_dict)
-        performance_history_objs = [self.PerformanceHistory(**data) for data in weighted_return_dict]
-        self.PerformanceHistory.objects.all().delete()
-        self.PerformanceHistory.objects.bulk_create(performance_history_objs)
+
+        return weighted_return_dict
 
 
     def pivots(self):
         """
         Calculates performance contribution by currency and sector. 
+
+        Returns:
+        - list: list of dicts containing data to create performance pivot objects.
 
         """
 
@@ -321,16 +325,15 @@ class Performance:
 
         test_sector_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['sector'], aggfunc=np.sum).reset_index().rename(columns={"sector": "label"})
         test_sector_pivot['fund'] = self.fund
-        test_sector_pivot['as_of_date'] = '2023-12-08'
+        test_sector_pivot['as_of_date'] = self.as_of_date
         test_sector_pivot['type'] = 'sector'
 
         test_currency_pivot = pd.pivot_table(combined_df, values='perc_contrib', index=['currency'], aggfunc=np.sum).reset_index().rename(columns={"currency": "label"})
         test_currency_pivot['fund'] = self.fund
-        test_currency_pivot['as_of_date'] = '2023-12-08'
+        test_currency_pivot['as_of_date'] = self.as_of_date
         test_currency_pivot['type'] = 'currency'
 
-        self.PerformancePivots.objects.all().delete()
         performance_pivot_list = test_sector_pivot.to_dict('records') + (test_currency_pivot.to_dict('records'))
-        performance_pivot_objs = [self.PerformancePivots(**data) for data in performance_pivot_list]
-        self.PerformancePivots.objects.bulk_create(performance_pivot_objs)
+
+        return performance_pivot_list
         

@@ -21,7 +21,7 @@ class Var():
     """
     
 
-    def __init__(self, fx_converted_df, position_info, fund, as_of_date, HistVarSeries, MarketRiskStatistics,HistogramBins, MarketRiskCorrelation, FactorData):
+    def __init__(self, fx_converted_df, position_info, fund, as_of_date, factor_data):
         """
         Constructor for a VaR object.
 
@@ -30,24 +30,16 @@ class Var():
             yf_data (pandas.DataFrame): Historical data containing the closing price for each position.  
             position_info (dict): Dict containing info (quantity, percent of AUM, etc.) for each position with percent of AUM at index 1. 
             fund (Fund): A fund object.
-            HistVarSeries (HistVarSeries): LiquditiyResult class.
-            MarketRiskStatistics (MarketRiskStatistics): MarketRiskStatistics class.
-            HistogramBins (HistogramBins): HistogramBins class.
-            MarketRiskCorrelation (MarketRiskCorrelation): MarketRiskCorrelation class. 
-            FactorData (FactorData): MarketRiskCorrelation class. 
+            as_of_date (str): the date the risk results will be generated for.
+            factor_data (pandas.DataFrame); historical factor data.
 
         """
         self.fund = fund
         self.as_of_date = as_of_date
-        self.HistVarSeries = HistVarSeries
-        self.MarketRiskStatistics = MarketRiskStatistics
-        self.HistogramBins = HistogramBins
-        self.MarketRiskCorrelation = MarketRiskCorrelation
-        self.FactorData = FactorData
+        self.risk_factor_df = factor_data
         self.fx_converted_df = fx_converted_df
         self.position_info = position_info
         self.factors = ['spy','tnx','bz','nyicdx','igln','vix']
-        self.risk_factor_df = self.get_factors()
         self.fx_converted_df.index = pd.to_datetime(self.fx_converted_df.index)
         self.combined_df = pd.merge(self.fx_converted_df,self.risk_factor_df, left_index=True, right_index=True).pct_change().dropna().reset_index()
         self.weights =  np.asarray([self.position_info[col][1] for col in self.fx_converted_df.columns])
@@ -60,18 +52,21 @@ class Var():
         Method runs market risk calculations calculations.
 
         """
-        
-        self.MarketRiskStatistics.objects.filter().delete()
-        self.HistogramBins.objects.all().delete()
-        self.parametric_var()
-        self.factor_var()
-        self.stress_tests()
-        self.histogram()
+
+        parametric_var_data = self.parametric_var()
+        factor_data = self.factor_var()
+        stress_test_data = self.stress_tests()
+        historgram_data = self.histogram()
+
+        return [historgram_data, parametric_var_data,factor_data, stress_test_data]
 
     
     def histogram(self):
         """
         Create the histogram data and create HistogramBins object.
+
+        Returns:
+        list: dicts containing data to create histogram objects
 
         """
 
@@ -87,16 +82,19 @@ class Var():
         hist, bin_edges = np.histogram( list(weighted_return_df['return']),bins=20)
 
         def create_dict(frequency, result):
-            return {'as_of_date':'2023-12-08', 'count': frequency,'bin':result, 'fund':self.fund}
+            return {'as_of_date':self.as_of_date, 'count': frequency,'bin':result, 'fund':self.fund}
 
         combined = list(map(create_dict, hist.tolist(), bin_edges.tolist()))
-        histogram_objs = [self.HistogramBins(**data) for data in combined]
-        self.HistogramBins.objects.bulk_create(histogram_objs)
+
+        return combined
 
 
     def parametric_var(self):
         """
         Create the Parametric VaR data (VaR and correlation matrix) and create MarketRiskStatistics and MarketRiskCorrelation objects.
+
+        Returns:
+        list: [1 day VaR result, dicts containing data to create correlation objects]
 
         """
 
@@ -104,7 +102,6 @@ class Var():
         weights = self.weights
  
         correl_list =[]
-        self.MarketRiskCorrelation.objects.all().delete()  
 
         # if more than one position create the correlation matrix and use the covarience matrix to calcualte VaR
         if len(self.tickers) > 1:
@@ -115,17 +112,15 @@ class Var():
             # prepare data to create MarketRiskCorrelation objects 
             for index, ticker in enumerate(self.tickers):
                 for correl_index, correl_ticker in enumerate(self.tickers):
-                    correl_list.append({'as_of_date':'2023-12-08','ticker': ticker,'to': correl_ticker, 'value': corr.tolist()[index][correl_index],'fund':self.fund})
+                    correl_list.append({'as_of_date':self.as_of_date,'ticker': ticker,'to': correl_ticker, 'value': corr.tolist()[index][correl_index],'fund':self.fund})
             
         else:
             std_dev = np.std(returns) * weights[0]
-            correl_list.append({'as_of_date':'2023-12-08','ticker': self.tickers[0],'to': self.tickers[0], 'value': 1,'fund':self.fund})
+            correl_list.append({'as_of_date':self.as_of_date,'ticker': self.tickers[0],'to': self.tickers[0], 'value': 1,'fund':self.fund})
 
         var_1_day = std_dev * 2.33
 
-        self.MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='parametric_var',value=var_1_day, fund=self.fund )
-        market_risk_correl_objs = [self.MarketRiskCorrelation(**data) for data in correl_list]
-        self.MarketRiskCorrelation.objects.bulk_create(market_risk_correl_objs)
+        return [var_1_day, correl_list]
 
     
     def calc_linear_model(self):
@@ -160,6 +155,9 @@ class Var():
         """
         Calcualte the historical factor VaR and P&L timeseries.
 
+        Returns:
+        list: [1 day VaR result, dicts containing data to create historical VaR objects]
+
         """
         
         dates = list(self.combined_df['Date'].dt.strftime('%Y-%m-%d'))
@@ -186,20 +184,20 @@ class Var():
         for idx, pl in enumerate(portfolio_returns.tolist()):
             row_dict = {}
             row_dict['date'] = dates[idx]
-            row_dict['as_of_date'] = '2023-12-08'
+            row_dict['as_of_date'] = self.as_of_date
             row_dict['pl'] = pl
             row_dict['fund'] = self.fund
             chart_list.append(row_dict)
- 
-        self.HistVarSeries.objects.all().delete()
-        hist_var_series_objs = [self.HistVarSeries(**data) for data in chart_list]
-        self.HistVarSeries.objects.bulk_create(hist_var_series_objs)
-        self.MarketRiskStatistics.objects.create(as_of_date='2023-12-08', catagory='var_result' ,type='hist_var_result',value=var_1d, fund=self.fund )
+
+        return [var_1d,chart_list]
         
     
     def stress_tests(self):
         """
         Calcualte the stress testing results.
+
+        Returns:
+        list: dicts containing data to create historical VaR objects
 
         """
 
@@ -229,49 +227,13 @@ class Var():
                         'Interest Rates up 10%','Interest Rates down 10%', 'Dollar up 10%','Dollar down 10%']
         
         def create_stress_test_obj(stress_names, stress_result):
-            return {'as_of_date':'2023-12-08','catagory':'stress_test','type': stress_names,'value':stress_result,'fund':self.fund}
+            return {'as_of_date':self.as_of_date,'catagory':'stress_test','type': stress_names,'value':stress_result,'fund':self.fund}
 
-        combined_stress_new = list(map(create_stress_test_obj, stress_names, stress_result))
-        market_risk_stat_objs = [self.MarketRiskStatistics(**data) for data in combined_stress_new]
-        self.MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
+        combined_stress_result = list(map(create_stress_test_obj, stress_names, stress_result))
+
+        return combined_stress_result
 
     
-    def get_factors(self):
-        """
-        Get the factor timeseries from Yahoo Finance and save and return it.
-
-        Returns:
-        pandas.DataFrame: df containing factor data 
-
-        """
-
-        factor_data = self.FactorData.objects.filter(as_of_date='2024-01-23')
-
-        # if factor data for the as of date is not already in the DB retrieve the data from yfinance 
-        if factor_data.count() == 0:
-            ticker_string = ''.join([ticker +' ' for ticker in ['SPY','^TNX','BZ=F','^NYICDX','IGLN.L','^VIX']])
-
-            data = yf.download(tickers=ticker_string, period="1y",
-                interval="1d", group_by='column',auto_adjust=True, prepost=False,threads=True,proxy=None)
-
-            data = data['Close'].fillna(method="ffill").dropna().reset_index()
-            data['as_of_date'] = '2024-01-23'
-            data.columns = [col.lower() for col in data.columns]
-            data = data.rename(columns={"bz=f": "bz", "igln.l": "igln","^nyicdx": "nyicdx","^tnx": "tnx","^vix": "vix"}).to_dict('records')
-            #DELTE THEIS DELTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            self.FactorData.objects.all().delete()
-
-            # Create and retrieve factor data objects
-            factor_data_objs = [self.FactorData(**obj) for obj in data]
-            self.FactorData.objects.bulk_create(factor_data_objs)
-            factor_data = self.FactorData.objects.filter(as_of_date='2024-01-23')
-        
-        factor_data_df = pd.DataFrame(factor_data.values('date','spy','tnx','bz','nyicdx','igln','vix'))
-
-        factor_data_df = factor_data_df.set_index('date')
-        factor_data_df.index.rename('Date',inplace=True)
-
-        return factor_data_df
     
     
         
