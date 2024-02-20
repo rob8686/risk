@@ -1,9 +1,8 @@
 from rest_framework import serializers
-from .models import Fund, Position, Security, PerformanceHistory, PerformancePivots, LiquditiyResult, FxData
+from .models import Fund, Position, Security, FxData
 import yfinance as yf
 import datetime
 import math
-from .risk_functions import GetFx
 
 
 class FundSerializer(serializers.ModelSerializer):
@@ -15,7 +14,6 @@ class FundSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Fund
-        #fields = '__all__'
         fields = ('id','name','currency','aum','benchmark','liquidity_limit','liquidity_status','performance_status','last_date')
 
 
@@ -24,10 +22,10 @@ class FundSerializer(serializers.ModelSerializer):
         Creates a position instance. 
         If the related security already exists use that or else use create a new security object.
         """
+
         validated_data['owner'] = self.context['request'].user
         obj = Fund.objects.create(**validated_data)
         return obj       
-        #return Fund(**validated_data)
 
 
 class SecuritySerializer(serializers.ModelSerializer):
@@ -85,12 +83,14 @@ class CreatePositionSerializer(serializers.ModelSerializer):
             yf_ticker = yf.Ticker(ticker)
             ticker_info = yf_ticker.info
 
-            if ticker_info['quoteType'] == 'ETF':
-                sector, industry  = 'ETF', 'ETF'
-            else:
-                sector, industry = ticker_info['sector'], ticker_info['industry']
             # this is the lenght of an empty response
             if len(ticker_info) > 3:
+
+                if ticker_info['quoteType'] == 'ETF':
+                    sector, industry  = 'ETF', 'ETF'
+                else:
+                    sector, industry = ticker_info['sector'], ticker_info['industry']
+                
                 security = Security.objects.create(
                     name=ticker_info['longName'], ticker=ticker, 
                     asset_class=ticker_info['quoteType'], currency=ticker_info['currency'],
@@ -101,15 +101,16 @@ class CreatePositionSerializer(serializers.ModelSerializer):
 
         # add the remaining Position fields to the data 
         if isinstance(validated_data['security'], Security):
-            closing_price = yf.Ticker(ticker).history(period="1d")['Close']
+            closing_price = yf.Ticker(ticker).history(period="1mo")['Close'][-2:-1]
             closing_price.index = closing_price.index.strftime('%Y/%m/%d')
             validated_data['last_price'] = closing_price.item()
             validated_data['price_date'] = datetime.datetime.strptime(closing_price.index[0],'%Y/%m/%d').strftime('%Y-%m-%d')
+
             if fund_currency != security_currency:
-                get_fx = GetFx([security_currency],fund_currency,FxData)
-                fx_rate = get_fx.get_fx(validated_data['price_date'])
+                fx_rate = FxData.objects.get_fx([security_currency],fund_currency, validated_data['price_date'],validated_data['price_date'])
             else:
                 fx_rate = 1
+
             validated_data['fx_rate'] = fx_rate    
             validated_data['quantity'] = math.floor((validated_data['percent_aum'] * funds[0].aum / 100) / closing_price / float(fx_rate))
             validated_data['mkt_value_local'] = validated_data['last_price'] * validated_data['quantity']

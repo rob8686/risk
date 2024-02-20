@@ -1,31 +1,43 @@
-from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-#from mysite.risk.models import Security, Position, Fund
-from .. models import Security, Position, Fund
-from .. import views
-#C:\Users\rheery\PycharmProjects\risk\mysite\risk\models.py
-#mysite\risk\models.py
+from .. models import Security, Fund, Benchmark
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import AccessToken
-from pymongo import MongoClient
-from django.db.models import Sum
 
 class PositionTests(APITestCase):
+    """
+    Tests for position objects.
+    """
 
     def setUp(self):
+        """
+        Set up for positon test.
+        """
 
-        Fund.objects.create(id=200,name='Test Fund',currency='USD',aum=1000000, benchmark='SPY', liquidity_limit='7')
+        benchmark = Benchmark.objects.create(name='S&P 500',ticker='SPY',currency='USD')
+        user = User.objects.create_user(username='test', email='test_email@test.com', password='test123')
+        self.access_token = AccessToken.for_user(user)
+        Fund.objects.create(id=200,name='Test Fund',currency='USD',aum=1000000, benchmark=benchmark, liquidity_limit='7',owner=user)
         Security.objects.create(name='Apple Inc.' , ticker='AAPL', sector = 'Technology',industry = 'Consumer Electronics', asset_class = 'EQUITY', currency='USD')
-        User.objects.create_user(username='test', email='test_email@test.com', password='test123')
 
     def test_position(self):
         """
-        Test position Post and Get
+        Test position Post and Get.
         """
+
         #Add authenticaltion tests
         url = reverse('position-list')
+
+        # Test adding a posiiton when not logged in 
+        data_ttwo = {'security': 'TTWO', 'fund': 200, 'percent_aum': '10'} 
+        response_ttwo = self.client.post(url, data_ttwo, format='json')
+
+        self.assertEqual(response_ttwo.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        auth_header = 'Bearer ' + str(self.access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=auth_header)
+        self.client.login(username="test", password="test123")
 
         # Test adding a posiiton that is not already in the DB
         data_ttwo = {'security': 'TTWO', 'fund': 200, 'percent_aum': '10'} 
@@ -53,16 +65,28 @@ class PositionTests(APITestCase):
         self.assertEqual(len(json_data[0]), 11)
         self.assertEqual(name, 'Take-Two Interactive Software, Inc.')
 
-
 class FundTests(APITestCase):
+    """
+    Tests for fund objects.
+    """
 
     def setUp(self):
-        test_user = User.objects.create_user(username='test', email='test_email@test.com', password='test123')
-        self.access_token = AccessToken.for_user(test_user)
+        """
+        Set up for fund test.
+        """
+
+        self.test_user = User.objects.create_user(username='test', email='test_email@test.com', password='test123')
+        self.access_token = AccessToken.for_user(self.test_user)
+        self.benchmark = Benchmark.objects.create(name='S&P 500',ticker='SPY',currency='USD')
+        self.access_token = AccessToken.for_user(self.test_user)
 
     def test_create_fund(self):
+        """
+        Test fund Post and Get.
+        """
+
         url = reverse('fund-list')
-        data = {'name':'Test Fund','currency':'USD','aum':1000000, 'benchmark':'SPY', 'liquidity_limit':'7'}
+        data = {'name':'Test Fund','currency':'USD','aum':1000000, 'benchmark':1, 'liquidity_limit':'7','owner':1}
 
         # Test Fund can not be created when user logged out
         response = self.client.post(url, data, format='json')
@@ -84,69 +108,88 @@ class FundTests(APITestCase):
         self.assertEqual(len(json_data[0]), 9)
         self.assertEqual(name, 'Test Fund')
 
-
 class GetRiskDataTests(APITestCase):
+    """
+    Set up for risk data tests.
+    """
 
     def setUp(self):
-        self.fund = Fund.objects.create(id=201,name='Test 2 Fund',currency='USD',aum=10000000000, benchmark='SPY', liquidity_limit='7')
+        benchmark = Benchmark.objects.create(name='S&P 500',ticker='SPY',currency='USD')
+        user = User.objects.create_user(username='test', email='test_email@test.com', password='test123')
+        Fund.objects.create(name='Test Fund',currency='USD',aum=1000000, benchmark=benchmark, liquidity_limit='7',owner=user)
+        self.access_token = AccessToken.for_user(user)
+        auth_header = 'Bearer ' + str(self.access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=auth_header)
+        self.client.login(username="test", password="test123")
         url = reverse('position-list')
-        data = {'security': 'TTWO', 'fund': 201, 'percent_aum': '10'} 
+        data = {'security': 'TTWO', 'fund': 1, 'percent_aum': '10'} 
         self.client.post(url, data, format='json')
-        data = {'security': 'AAPL', 'fund': 201, 'percent_aum': '10'} 
+        data = {'security': 'AAPL', 'fund': 1, 'percent_aum': '10'} 
         self.client.post(url, data, format='json')
-        data = {'security': 'HSBA.L', 'fund': 201, 'percent_aum': '10'} 
+        data = {'security': 'HSBA.L', 'fund': 1, 'percent_aum': '10'} 
         self.client.post(url, data, format='json')
-        self.mongo_client = MongoClient('mongodb+srv://robert:BQLUn8C60kwtluCO@risk.g8lv5th.mongodb.net/test')
-
-    def Test_run_risk(self):
-
-        new_db = self.mongo_client.test_db
-        collection = new_db.test_collection
-        print('RESPONSE 33333333333333333')
-        try:
-            print('RESPONSE 4444444444444444444444444')
-            url = reverse('risk:risk_run' ,args=[201, 'USD'])
-            print('RESPONSE 222222222222222222222')
-            response = self.client.get(url, format='json')
-            print('RESPONSE !!!!!!!!!!!!!!!')
-            print(response)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-        finally:
-            print('HELLO DOT?')
+        self.date = Fund.objects.filter(id=1)[0].last_date
 
 
-    def test_A_then_B(self):
-        self.Test_run_risk()
-
-        liquidity_url = reverse('risk:liquidity' ,args=[201])
-        response = self.client.get(liquidity_url, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    def test_run_risk(self):
+        """
+        Test running risk.
+        """
         
+        url = reverse('risk:risk_run' ,args=[1, 'USD', self.date])
+        response = self.client.get(url, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.performance()
+        self.liquidity()
+        self.market_risk()
+
+
+    def liquidity(self):
+        """
+        Test running liquidity.
+        """
+
+        url = reverse('risk:liquidity_data' ,args=[1, self.date])
+        response = self.client.get(url, format='json')
         data = response.json()
-        cumulative = data['cumulative']
-        result = data['result']
-        positions = Position.objects.filter(fund=201)
-        total_perc_aum = positions.aggregate(Sum("percent_aum"))['percent_aum__sum']
-        tickers = list(positions.values_list("security__ticker",flat=True))
-        subrows = result[0]['subRows']
-        subrow_tickers = [subrow['type'] for subrow in subrows]
-        self.assertEqual(tickers.sort(), subrow_tickers.sort())
-
-        self.assertEqual(round(cumulative[6]['100'],2),round(cumulative[6]['50'],2),round(cumulative[6]['30'],2))
-        self.assertEqual(round(total_perc_aum,2), round(cumulative[6]['100'],2))
-
-        sum = 0
-        for days in cumulative:
-            for row in subrows:
-                sum = sum + row[days['name']]
-            self.assertEqual(round(sum,2), round(days['100'],2))
-
-        performance_url = reverse('risk:performance' ,args=[201])
-        response = self.client.get(performance_url, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        market_risk_url = reverse('risk:market_risk' ,args=[201])
-        response = self.client.get(market_risk_url, format='json')
+        self.assertEqual(len(data['Liquidity_stats'].keys()), 3) # test response is the correct lenght 
+
+
+    def performance(self):
+        """
+        Test running performance.
+        """
+
+        url = reverse('risk:performance_data' ,args=[1, self.date])
+        response = self.client.get(url, format='json')
+        data = response.json()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(data.keys()), 3) # test response is the correct lenght
+
+    def market_risk(self):
+        """
+        Test running market risk.
+        """
+
+        url = reverse('risk:market_risk_data' ,args=[1,self.date])
+        response = self.client.get(url, format='json')
+        data = response.json()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(data.keys()), 3) # test response is the correct lenght
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

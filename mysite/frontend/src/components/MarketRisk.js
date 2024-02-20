@@ -14,8 +14,8 @@ import './MarketRisk.css';
 
 
 const MarketRisk = () => {
-
-  const fundNum = window.location.href.split("/").pop()
+  const date = window.location.href.split("/").slice(-2)[1]
+  const fundNum = window.location.href.split("/").slice(-2)[0]
   const [data, setData] = useState([])
   const [height, setHeight] = useState()
   const ref = useRef(null)
@@ -63,7 +63,7 @@ const MarketRisk = () => {
   
   let getData = async ()=> {
 
-    let response = await fetch(`http://127.0.0.1:8000/risk/api/market_risk_data/${fundNum}`, {
+    let response = await fetch(`http://127.0.0.1:8000/risk/api/market_risk_data/${fundNum}/${date}`, {
         method:'GET',
         headers:{
             'Content-Type':'application/json'

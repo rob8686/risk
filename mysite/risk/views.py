@@ -97,7 +97,7 @@ class PerformanceAPIView(APIView):
     API view for returning fund performance data.
     """
 
-    def get(self, request, fund_id):
+    def get(self, request, fund_id, date):
         """
         Gets: 
         - fund and benchamrk price timeseries
@@ -106,7 +106,7 @@ class PerformanceAPIView(APIView):
         - the performance status of the fund (pass / warning / fail) 
         """
 
-        performance_history = PerformanceHistory.objects.filter(fund__pk=fund_id).values('date', 'fund_history', 'benchamrk_history')
+        performance_history = PerformanceHistory.objects.filter(fund__pk=fund_id).filter(as_of_date=date).values('date', 'fund_history', 'benchamrk_history')
         performance_pivots = PerformancePivots.objects.performance_stats(fund_id)
         performance_stats = PerformanceHistory.objects.performance_stats(fund_id)
         return Response({'performance_pivots': performance_pivots,'performance_history':performance_history,'performance_stats':performance_stats},status=status.HTTP_200_OK)
@@ -117,7 +117,7 @@ class LiquidityResultAPIView(APIView):
     API view for returning fund liquidity data.
     """
      
-    def get(self, request, fund_id):
+    def get(self, request, fund_id, date):
         """
         Gets: 
         - time to liqudiate for fund and psoitions 
@@ -132,18 +132,18 @@ class MarketRiskResultAPIView(APIView):
     API view for returning market risk data.
     """
 
-    def get(self, request, fund_id):
+    def get(self, request, fund_id, date):
         """
         Gets: 
         - VaR history
         - Factor VaR and stress testing results
         - Parametric VaR result and statistics
         """
-        hist_var_history = HistVarSeries.objects.filter(fund__pk=fund_id).values('date', 'pl')
-        risk_stats = MarketRiskStatistics.objects.filter(fund__pk=fund_id)
+        hist_var_history = HistVarSeries.objects.filter(fund__pk=fund_id).filter(as_of_date=date).values('date', 'pl')
+        risk_stats = MarketRiskStatistics.objects.filter(fund__pk=fund_id).filter(as_of_date=date)
         var_1d_hist = risk_stats.filter(type='hist_var_result')[0].value
         var_1d_parametric = risk_stats.filter(type='parametric_var')[0].value
-        histogram = HistogramBins.objects.filter(fund__pk=fund_id).values('bin','count')
+        histogram = HistogramBins.objects.filter(fund__pk=fund_id).filter(as_of_date=date).values('bin','count')
         correlation_data = MarketRiskCorrelation.objects.get_correlation(fund_id)
         tickers, correlation_matrix = correlation_data[0], correlation_data[1]
         stress_tests = risk_stats.filter(catagory='stress_test').values('type','value')

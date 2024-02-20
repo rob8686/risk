@@ -41,6 +41,33 @@ class Security(models.Model):
         - String: the name of the security. 
         """
         return self.ticker
+    
+class Benchmark(models.Model):
+    """
+    Model representing a benchmark.
+
+    Fields:
+    - name (CharField): the name of the benchmark.
+    - ticker (CharField): the ticker of the benchmark.
+    - currency (CharField): the currency of the benchmark.
+
+    Methods:
+    - __str__: Return a string representation of the benchmark.
+    """
+
+    name = models.CharField(max_length=200)
+    ticker = models.CharField(max_length=200)
+    currency = models.CharField(max_length=3)
+
+    def __str__(self):
+        """
+        Get a string representation of the benchamrk.
+
+        Returns:
+        - String: the name of the benchmark. 
+        """
+
+        return self.name
 
 
 class Fund(models.Model):
@@ -78,7 +105,8 @@ class Fund(models.Model):
     name = models.CharField(max_length=200)
     currency = models.CharField(max_length=3)
     aum = models.FloatField(default=0)
-    benchmark = models.CharField(max_length=200, default='SPY')
+    #benchmark = models.CharField(max_length=200, default='SPY')
+    benchmark = models.ForeignKey(Benchmark, on_delete=models.CASCADE,default=1)
     liquidity_limit =  models.CharField(
         choices=LiquidityBucket.choices,
         default=LiquidityBucket.D365PLUS,
@@ -112,55 +140,33 @@ class Fund(models.Model):
         Run the risk analytics for the fund.
         """   
 
-
-        MarketRiskStatistics.objects.filter(fund=self).filter(as_of_date=date).delete()
-        HistVarSeries.objects.filter(fund=self).filter(as_of_date=date).delete()
-
         positions = Position.objects.filter(fund=self)
 
+        # retrieve the factor and FX data
         factor_data = FactorData.objects.get_factors(date)
 
         currencies = set(positions.values_list('security__currency', flat=True))
         fx_data = FxData.objects.get_fx(currencies,self.currency, date)
 
-        risk_result = RunRisk(self, positions, date, factor_data, fx_data, FxData).run_risk()
+        risk_result = RunRisk(self, positions, date, factor_data, fx_data).run_risk()
         
-        # create liqudity result objects and update the liquidity status 
-        LiquditiyResult.objects.filter(fund=self).filter(as_of_date=date).delete()
-        liquditiy_result_objs = [LiquditiyResult(**data) for data in risk_result[0]]
-        LiquditiyResult.objects.bulk_create(liquditiy_result_objs)
-        LiquditiyResult.objects.liquidity_stats(self.id)
-
-        # create performance history objects and update the performance status
-        PerformanceHistory.objects.filter(fund=self).filter(as_of_date=date).delete()
-        performance_history_objs = [PerformanceHistory(**data) for data in risk_result[1][0]]
-        PerformanceHistory.objects.bulk_create(performance_history_objs)
-        PerformanceHistory.objects.performance_stats(self.id)
-
-        # create performance pivots objecte
-        PerformancePivots.objects.filter(fund=self).filter(as_of_date=date).delete()
-        performance_pivot_objs = [PerformancePivots(**data) for data in risk_result[1][1]]
-        PerformancePivots.objects.bulk_create(performance_pivot_objs)
-
-        HistogramBins.objects.filter(fund=self).filter(as_of_date=date).delete()
-        histogram_objs = [HistogramBins(**data) for data in risk_result[2][0]]
-        HistogramBins.objects.bulk_create(histogram_objs)
-
-        MarketRiskCorrelation.objects.filter(fund=self).filter(as_of_date=date).delete()
-        market_risk_correl_objs = [MarketRiskCorrelation(**data) for data in risk_result[2][1][1]]
-        MarketRiskCorrelation.objects.bulk_create(market_risk_correl_objs)
-
+        # create the objects for the risk results 
+        result_list = [
+            [LiquditiyResult,risk_result[0]],[PerformanceHistory,risk_result[1][0]],[PerformancePivots,risk_result[1][1]],[HistogramBins,risk_result[2][0]], 
+            [MarketRiskCorrelation, risk_result[2][1][1]], [MarketRiskStatistics,risk_result[2][3]], [HistVarSeries, risk_result[2][2][1]]
+            ]
+        
+        for item in result_list:
+            item[0].objects.filter(fund=self).filter(as_of_date=date).delete()        
+            objs = [item[0](**data) for data in item[1]]
+            item[0].objects.bulk_create(objs)
 
         MarketRiskStatistics.objects.create(as_of_date=date, catagory='var_result' ,type='parametric_var',value=risk_result[2][1][0], fund=self)
         MarketRiskStatistics.objects.create(as_of_date=date, catagory='var_result' ,type='hist_var_result',value=risk_result[2][2][0], fund=self)
 
-        HistVarSeries.objects.filter(fund=self).filter(as_of_date=date).delete()
-        hist_var_series_objs = [HistVarSeries(**data) for data in risk_result[2][2][1]]
-        HistVarSeries.objects.bulk_create(hist_var_series_objs)
-
-        #combined_stress_new = list(map(create_stress_test_obj, stress_names, stress_result))
-        market_risk_stat_objs = [MarketRiskStatistics(**data) for data in risk_result[2][3]]
-        MarketRiskStatistics.objects.bulk_create(market_risk_stat_objs)
+        #update liquidity and performance status
+        LiquditiyResult.objects.liquidity_stats(self.id)
+        PerformanceHistory.objects.performance_stats(self.id)
 
 
     def refresh_portfolio(self, yf_data):
@@ -185,6 +191,7 @@ class Fund(models.Model):
             position.mkt_value_base = position.mkt_value_local * fx_rate 
             position.percent_aum = position.mkt_value_base / aum
             position.save()
+
 
 class Position(models.Model):
     """
@@ -224,7 +231,7 @@ class Position(models.Model):
         """
 
         return self.security.ticker
-
+    
 
 class PerformanceManager(models.Manager):
     """
@@ -539,6 +546,7 @@ class LiquditiyResult(models.Model):
         """
 
         return str(self.fund) + ' ' + self.as_of_date + ' ' + self.stress
+    
 
 class CumulativeLiquditiyResult(models.Model):
     """
@@ -572,6 +580,7 @@ class CumulativeLiquditiyResult(models.Model):
         """
 
         return str(self.fund) + ' ' + self.as_of_date.strftime('%Y-%m-%d') + ' ' + self.day
+    
 
 class HistVarSeries(models.Model):
     """
@@ -601,6 +610,7 @@ class HistVarSeries(models.Model):
         """
 
         return str(self.fund) + ' ' + self.as_of_date.strftime('%Y-%m-%d') + ' ' + self.date.strftime('%Y-%m-%d')
+    
 
 class MarketRiskStatistics(models.Model):
     """
@@ -633,6 +643,7 @@ class MarketRiskStatistics(models.Model):
 
         return str(self.fund) + ' ' + self.as_of_date.strftime('%Y-%m-%d') + ' ' + self.catagory + ' ' + self.type
 
+
 class HistogramBins(models.Model):
     """
     Model representing a bin of a histogram.
@@ -661,6 +672,7 @@ class HistogramBins(models.Model):
         """
 
         return str(self.fund) + ' ' + self.as_of_date.strftime('%Y-%m-%d') + ' ' + self.bin 
+    
 
 class CorrelationManager(models.Manager):
     """
@@ -686,6 +698,7 @@ class CorrelationManager(models.Manager):
         correl_matrix = [table[col].tolist() for col in table.columns]
         tickers = list(table.columns)
         return [tickers,correl_matrix]
+    
 
 class MarketRiskCorrelation(models.Model):
     """
@@ -720,6 +733,7 @@ class MarketRiskCorrelation(models.Model):
         """
 
         return str(self.fund) + ' ' + self.as_of_date.strftime('%Y-%m-%d') + ' ' + self.ticker + ' ' + self.to
+    
 
 class FactorManager(models.Manager):
     """
@@ -768,6 +782,7 @@ class FactorManager(models.Manager):
         factor_data_df.index.rename('Date',inplace=True)
 
         return factor_data_df
+    
 
 class FactorData(models.Model):
     """
@@ -855,19 +870,23 @@ class FxDataManager(models.Manager):
 
         df = pd.DataFrame() 
         count = 1
+        
         for currency in currency_set:
             
             # Don't need to get data for the fund currency
             if currency != to_currency:
 
                 fx_query = FxData.objects.filter(as_of_date=as_of_date).filter(to_currency=to_currency).filter(from_currency=currency)
-
+                    
                 #if the currecny is already in the DB for the as of date retrieve the FX date from the DB
                 if fx_query.count() > 0:
-                    fx_df =  pd.DataFrame(fx_query.values('date', 'value')).set_index('date')
-                    fx_df = fx_df.rename(columns={"value": currency})
+                    # If a date parameter is not entered retrieve the FX history, else returns the FX rate on that date 
+                    if date == None:
+                        fx_df =  pd.DataFrame(fx_query.values('date', 'value')).set_index('date')
+                        fx_df = fx_df.rename(columns={"value": currency})
+                    else:
+                      return fx_query.filter(date=date).values('value')[0]['value']  
 
-                # Else call the data through trh Alpha Vantange API
                 else:
                     # 5 API call per minute limit
                     if count % 5 == 0:
@@ -880,10 +899,6 @@ class FxDataManager(models.Manager):
                         return 'API Limit Reached'
                     if 'Error Message' in fx_json:
                         return 'Invalid Currency Code'
-                    
-                    # If a date parameter is entered, returns the FX rate on that date.
-                    if date != None:
-                        return fx_json['Time Series FX (Daily)'][date]['4. close']
                     
                     fx_df =  pd.DataFrame.from_dict(fx_json['Time Series FX (Daily)']).T['4. close']
                     fx_df = fx_df.astype('float')
@@ -899,6 +914,10 @@ class FxDataManager(models.Manager):
                     FxData.objects.filter(to_currency=to_currency).filter(from_currency=currency).delete()
                     FxData.objects.bulk_create(fx_data_objs)
 
+                    # If a date parameter is entered, returns the FX rate on that date.
+                    if date != None:
+                        return fx_json['Time Series FX (Daily)'][date]['4. close']
+
                     fx_df.rename(columns={"value": currency}, inplace=True)
                     fx_df = fx_df[currency]
 
@@ -908,6 +927,7 @@ class FxDataManager(models.Manager):
         df = df.rename_axis('Date')
 
         return df
+    
 
 class FxData(models.Model):
     """

@@ -79,19 +79,19 @@ const fetchData = async (url, requestOptions = '') => {
     )},
     {Header: 'Liquidity', accessor: 'liquidity_status',
     Cell: ({ cell }) => (
-      <Link to={`/liquidity/${cell.row.values.id}`}>
+      <Link to={`/liquidity/${cell.row.values.id}/${cell.row.values.last_date}`}>
         <RiskButton status={cell.row.values.liquidity_status}/>
       </Link>
     )},
     {Header: 'Performance', accessor: 'performance_status',
     Cell: ({ cell }) => (
-      <Link to={`/performance/${cell.row.values.id}`}>
+      <Link to={`/performance/${cell.row.values.id}/${cell.row.values.last_date}`}>
         <RiskButton status={cell.row.values.performance_status}/>
       </Link>
     )},
     {Header: 'Market Risk', accessor: 'market_risk',
     Cell: ({ cell }) => (
-      <Link to={`/market_risk/${cell.row.values.id}`}>
+      <Link to={`/market_risk/${cell.row.values.id}/${cell.row.values.last_date}`}>
         <RiskButton status={cell.row.values.performance_status}/>
       </Link>
     )},

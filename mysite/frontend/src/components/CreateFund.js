@@ -21,7 +21,7 @@ const CreateFund = () => {
             'name':e.target.fundname.value,
             'currency':e.target.currency.value,
             'aum':e.target.aum.value,
-            'benchmark':e.target.benchmark.value,
+            'benchmark':parseInt(e.target.benchmark.value),
             'liquidity_limit':e.target.liquidity.value,
         })
     })
@@ -66,7 +66,7 @@ const CreateFund = () => {
                     </Form.Group>
                     <Form.Label>Performance Benchmark</Form.Label>
                     <Form.Select aria-label="Default select example" name="benchmark">
-                        <option value="SPY">SPDR S&P 500 ETF Trust (SPY)</option>
+                        <option value='1'>SPDR S&P 500 ETF Trust (SPY)</option>
                         <option value="2">Two</option>
                         <option value="3">Three</option>
                     </Form.Select>

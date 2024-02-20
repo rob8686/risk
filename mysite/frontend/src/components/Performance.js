@@ -9,15 +9,16 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 
 const Performance = () => {
-    const fundNum = window.location.href.split("/").pop()
     const [data, setData] = useState([])
+    const date = window.location.href.split("/").slice(-2)[1]
+    const fundNum = window.location.href.split("/").slice(-2)[0]
 
     useEffect(() => {
         getData()
       }, [])
 
     const getData = async () => {
-        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/performance_data/${fundNum}`)    //+fundNum)
+        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/performance_data/${fundNum}/${date}`)    //+fundNum)
         setData(riskData)
       }
       

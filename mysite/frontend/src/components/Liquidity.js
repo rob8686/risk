@@ -8,7 +8,11 @@ import {Container, Row, Col, Card, Form, Button } from "react-bootstrap";
 
 
 function Liquidity() {
-    const fundNum = window.location.href.split("/").pop()
+    const date = window.location.href.split("/").slice(-2)[1]
+    const fundNum = window.location.href.split("/").slice(-2)[0]
+    console.log('FUnd Num')
+    console.log(fundNum)
+    console.log(date)
     const [data, setData] = useState([])
 
     useEffect(() => {
@@ -16,7 +20,7 @@ function Liquidity() {
       }, [])
 
     const getData = async () => {
-        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/liquidity_data/${fundNum}`)
+        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/liquidity_data/${fundNum}/${date}`)
         setData(riskData['Liquidity_stats'])
       }  
       

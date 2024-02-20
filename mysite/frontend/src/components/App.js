@@ -87,9 +87,9 @@ const App = () => {
                     <Route path="/" element={<Funds data={funds} getFunds={getFunds} fetchData={fetchData}/>}/>
                     <Route path="/create_fund" element={<CreateFund getFunds={getFunds} />}/>
                     <Route path="/positions/:id" element={<Positions/>}/>
-                    <Route path="/liquidity/:id" element={<Liquidity/>}/>
-                    <Route path="/performance/:id" element={<Performance/>}/>
-                    <Route path="/market_risk/:id" element={<MarketRisk/>}/>
+                    <Route path="/liquidity/:id/:date" element={<Liquidity/>}/>
+                    <Route path="/performance/:id/:date" element={<Performance/>}/>
+                    <Route path="/market_risk/:id/:date" element={<MarketRisk/>}/>
                     <Route path="/login" element={<Login/>}/>
                     <Route path="/create_user" element={<CreateUser/>}/>
                     <Route path="/create_position/*" element={<CreatePosition/>}/>

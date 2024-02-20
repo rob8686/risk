@@ -1,128 +1,8 @@
 import yfinance as yf
 import math
-import requests
 import pandas as pd
 import numpy as np
 import time
-
-
-class GetFx:
-    """
-    Class for retrieving FX data using the Alpha Vantage API
-    ...
-
-    Methods:
-    - _init__: Constructor for a get FX object.
-    - fx_from_api: Calls API for requested currency and returns the FX data. 
-    - get_fx: Retrieve FX data for each currency in the inputed set of currency codes.
-
-    """
-
-    def __init__(self, currency_set,to_currency, FxData):
-        """
-        Constructor for a get FX object.
-
-        Parameters
-        ----------
-            currency_set (set) : A set of strings which contains currency codes  
-            to_currency (str): A currency code 
-        """
-
-        self.currency_set = currency_set
-        self.to_currency = to_currency
-        self.FxData = FxData
-
-    def fx_from_api(self, from_currency):
-        """
-        Calls API for requested currency and returns the FX data.
-
-        Parameters
-        ---------- 
-            from_currency (str): A currency code
-
-        Returns:
-        dict: dict containing FX data. 
-        """
-
-        apikey='2M3IEELDCP3HPW2F'
-        url = f'https://www.alphavantage.co/query?function=FX_DAILY&from_symbol={from_currency}&to_symbol={self.to_currency}&outputsize=full&apikey={apikey}'
-        r = requests.get(url)
-        data = r.json()
-        return data
-
-    def get_fx(self, date=None):
-        """
-        Retrieve FX data for each currency in the inputed set of currency codes.
-
-        Parameters
-        ---------- 
-            date (str, optional): A string representing a date. If not provided, the default value is None.
-
-        Returns:
-        - pandas.DataFrame: If no date parameter is entered, returns a df containing historical FX date.
-        - float: If a date parameter is entered, returns the FX rate on that date.
-
-        """
-
-        df = pd.DataFrame() 
-        count = 1
-        for currency in self.currency_set:
-            
-            # Don't need to get data for the fund currency
-            if currency != self.to_currency:
-
-                fx_query = self.FxData.objects.filter(as_of_date='2023-12-08').filter(to_currency=self.to_currency).filter(from_currency=currency)
-
-                #if the currecny is already in the DB for the as of date retrieve the FX date from the DB
-                if fx_query.count() > 0:
-                    fx_df =  pd.DataFrame(fx_query.values('date', 'value')).set_index('date')
-                    fx_df = fx_df.rename(columns={"value": currency})
-
-                # Else call the data through trh Alpha Vantange API
-                else:
-                    # 5 API call per minute limit
-                    if count % 5 == 0:
-                        time.sleep(60)
-
-                    fx_json = self.fx_from_api(currency)
-
-                    # Check for error messages in the API response 
-                    if 'Note' in fx_json:
-                        return 'API Limit Reached'
-                    if 'Error Message' in fx_json:
-                        return 'Invalid Currency Code'
-                    
-                    # If a date parameter is entered, returns the FX rate on that date.
-                    if date != None:
-                        return fx_json['Time Series FX (Daily)'][date]['4. close']
-                    
-                    fx_df =  pd.DataFrame.from_dict(fx_json['Time Series FX (Daily)']).T['4. close']
-                    fx_df = fx_df.astype('float')
-                    fx_df = fx_df.rename('value')
-                    fx_df = fx_df.to_frame()
-                    fx_df.index.rename('date',inplace=True)
-                    fx_df['as_of_date'] = '2023-12-08'
-                    fx_df['to_currency'] = self.to_currency
-                    fx_df['from_currency'] = currency
-
-                    # Create the FxData object 
-                    fx_data_objs = [self.FxData(**data) for data in fx_df.reset_index().to_dict('records')]
-                    self.FxData.objects.filter(to_currency=self.to_currency).filter(from_currency=currency).delete()
-                    self.FxData.objects.bulk_create(fx_data_objs)
-
-                    fx_df.rename(columns={"value": currency}, inplace=True)
-                    fx_df = fx_df[currency]
-
-                df = pd.concat([df, fx_df],axis=1)
-                count = count + 1
-
-            # if both currencies are the same when a specific date is request return a rate of 1  
-            #elif date != None:
-            #    return 1
-
-        df = df.rename_axis('Date')
-
-        return df
 
 class Liquidity:
     """
@@ -244,7 +124,7 @@ class Performance:
         self.percent_return_df = self.yf_data.pct_change()
         self.fund = fund
         self.as_of_date = as_of_date
-        self.benchmark = self.fund.benchmark
+        self.benchmark = self.fund.benchmark.ticker
         self.benchmark_data = self.yf_data[self.benchmark]
         self.benchmark_return = self.percent_return_df[self.benchmark]
 

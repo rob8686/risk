@@ -1,4 +1,4 @@
-from .risk_functions import GetFx, Liquidity,Performance
+from .risk_functions import Liquidity,Performance
 from .market_risk import Var
 import pandas as pd
 import yfinance as yf
@@ -22,16 +22,17 @@ class RunRisk():
 
     """
 
-    def __init__(self, fund, positions, as_of_date, factor_data, fx_data, FxData):
+    def __init__(self, fund, positions, as_of_date, factor_data, fx_data):
         """
         Constructor for a run risk object.
 
         Parameters
         ----------
             fund (Fund) : a fund object.
-            positions list(Posiiton): list of related position.
+            positions list(Posiiton): list of related position. 
             as_of_date (str): the date the risk results will be generated for.
-            factor_data (pandas.DataFrame); historical factor data.
+            factor_data (pandas.DataFrame): historical factor data.
+            fx_data (pandas.DataFrame): historical FX data.
         """
 
         self.fund = fund
@@ -41,12 +42,9 @@ class RunRisk():
         self.as_of_date = as_of_date
         self.factor_data = factor_data
         self.fx_data = fx_data
-        # Update!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        self.benchmark_currency = {'SPY':'USD'}
         self.ticker_currency_list = self.get_positions_data()
         self.position_info = self.get_position_info()
         self.yf_data = self.get_yf_data()
-        self.FxData = FxData
 
     def run_risk(self):
         """
@@ -61,9 +59,9 @@ class RunRisk():
 
         performance_result = Performance(fx_converted_df[1], self.position_info, self.fund, self.as_of_date).get_performance()
 
-        if self.benchmark not in self.position_info.keys():
-            self.yf_data.drop(columns=[self.benchmark],inplace=True, level=1)
-            fx_converted_df[1].drop(columns=[self.benchmark],inplace=True)
+        if self.benchmark.ticker not in self.position_info.keys():
+            self.yf_data.drop(columns=[self.benchmark.ticker],inplace=True, level=1)
+            fx_converted_df[1].drop(columns=[self.benchmark.ticker],inplace=True)
 
         liq_result = Liquidity(self.yf_data,self.position_info, self.fund, self.as_of_date).get_liquidity()
 
@@ -92,7 +90,7 @@ class RunRisk():
         """
 
         unique_tickers = set(ticker[0] for ticker in self.ticker_currency_list)
-        ticker_string = self.benchmark + ' ' + ' '.join(unique_tickers)
+        ticker_string = self.benchmark.ticker + ' ' + ' '.join(unique_tickers)
         data = yf.download(tickers=ticker_string, period="1y",
             interval="1d", group_by='column',auto_adjust=True, prepost=False,threads=True,proxy=None)
         data.index = data.index.strftime('%Y-%m-%d')
@@ -103,17 +101,6 @@ class RunRisk():
 
         return data
     
-    def get_fx_data(self):
-        """
-        Method retrives historical FX data. 
-
-        Returns:
-        pandas.DataFrame: dataframe containing FX data.        
-        """
-        unique_currency_set = set(currency[1] for currency in self.ticker_currency_list)
-        fx_data = GetFx(unique_currency_set,self.fund_ccy, self.FxData)
-        fx_data_df = fx_data.get_fx()
-        return fx_data_df
     
     def merge_yf_fx_data(self):
         """
@@ -144,7 +131,7 @@ class RunRisk():
         combined_df[self.fund_ccy] = 1
         for ticker, ccy in self.ticker_currency_list:
             fx_converted_df[ticker] = combined_df[ticker] * combined_df[ccy]
-        fx_converted_df[self.benchmark] = combined_df[self.benchmark] * combined_df[self.benchmark_currency[self.benchmark]]
+        fx_converted_df[self.benchmark.ticker] = combined_df[self.benchmark.ticker] * combined_df[self.benchmark.currency]
         return [combined_df, fx_converted_df] 
 
     def get_position_info(self):
