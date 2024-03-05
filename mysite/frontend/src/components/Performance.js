@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import PivotBarChart from './PivotBarChart';
 import { Bar, Line } from 'recharts';
 import RiskLineChart from './RiskLineChart.js';
-import RiskLineChart2 from './RiskLineChart2.js';
 import Table from 'react-bootstrap/Table';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
+import {fetchData2} from '../services/ApiService.js'
 
 const Performance = () => {
     const [data, setData] = useState([])
@@ -17,23 +17,12 @@ const Performance = () => {
         getData()
       }, [])
 
-    const getData = async () => {
-        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/performance_data/${fundNum}/${date}`)    //+fundNum)
-        setData(riskData)
+      const getData = async () => {
+        const data = await fetchData2(`risk/api/performance_data/${fundNum}/${date}`)
+        setData(data)
       }
       
-    const fetchData = async (url, requestOptions = '') => {
-      const response = (requestOptions === '') ?  await fetch(url) : await fetch(url,requestOptions);
-      const data = await response.json();
-      return data; 
-    }
-
-
     if (!data['performance_pivots']) return <div>Loading...</div>  
-
-    const newData = data
-    console.log('performance!!!!!!!!')
-    console.log(data)
 
     const keys = Object.keys(data['performance_history']["0"])
     const bar = [<Bar dataKey="perc_contrib" fill="#8884d8" barSize={20} rowHeight={30}/>]   

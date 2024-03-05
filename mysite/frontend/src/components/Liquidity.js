@@ -5,6 +5,7 @@ import RiskLineChart from './RiskLineChart.js';
 import { AiOutlineArrowRight, AiOutlineArrowDown } from 'react-icons/ai'
 import { Line } from 'recharts';
 import {Container, Row, Col, Card, Form, Button } from "react-bootstrap";
+import {fetchData2} from '../services/ApiService.js'
 
 
 function Liquidity() {
@@ -20,15 +21,9 @@ function Liquidity() {
       }, [])
 
     const getData = async () => {
-        const riskData = await fetchData(`http://127.0.0.1:8000/risk/api/liquidity_data/${fundNum}/${date}`)
-        setData(riskData['Liquidity_stats'])
-      }  
-      
-      const fetchData = async (url, requestOptions = '') => {
-        const response = (requestOptions === '') ?  await fetch(url) : await fetch(url,requestOptions);
-        const data = await response.json();
-        return data; 
-      }
+      const data = await fetchData2(`risk/api/liquidity_data/${fundNum}/${date}`)
+      setData(data['Liquidity_stats'])
+    }
 
     const columns = [
         {

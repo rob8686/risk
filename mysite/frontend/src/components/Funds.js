@@ -1,6 +1,4 @@
 import { useState, useEffect, useContext } from 'react'
-//import Table from './Table.js';
-import AddFund from './AddFund.js';
 import {BrowserRouter as Router, Switch, Route, Routes, Link, Redirect,useLocation} from 'react-router-dom'
 import Button from 'react-bootstrap/Button'
 import Table from 'react-bootstrap/Table'

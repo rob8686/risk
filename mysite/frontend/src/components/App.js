@@ -5,7 +5,6 @@ import {Container, Row, Col, Card, Form, Button } from "react-bootstrap";
 import ReactDOM from 'react-dom';
 import { render } from "react-dom";
 import Funds from './Funds.js';
-import AddFund from './AddFund.js';
 import Positions from './Positions.js';
 import Liquidity from './Liquidity.js';
 import Performance from './Performance.js';
@@ -22,24 +21,22 @@ import '../../static/css/sidebar.css'
 import { AiOutlineHome, AiFillHome } from 'react-icons/ai';
 import CreatePosition from './CreatePosition.js';
 import './App.css';
+import {fetchData2} from '../services/ApiService.js'
+
 
 const App = () => {
 
   const [funds, setFunds] = useState([])
   const [pathname, setPathname] = useState([window.location.pathname])
   const currentURL = window.location.href // returns the absolute URL of a page
-  console.log(currentURL)
-  console.log(pathname)
-  console.log('Everywhere!!')
 
-  
   useEffect(() => {
     getFunds()
   }, []) 
 
   const getFunds = async () => {
-    const FundsFromServer = await fetchData('http://127.0.0.1:8000/api/fund/')
-    setFunds(FundsFromServer)
+    const data = await fetchData2('api/fund/')
+    setFunds(data)
   }
 
   const fetchData = async (url, requestOptions = '') => {

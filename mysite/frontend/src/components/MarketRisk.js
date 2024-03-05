@@ -10,7 +10,9 @@ import Col from 'react-bootstrap/Col';
 import SideTable from './SideTable.js';
 import MarketRiskAreaChart from './MarketRiskAreaChart';
 import MarketRiskVerticalBarChart from './MarketRiskVerticalBarChart';
+import {fetchData2} from '../services/ApiService.js'
 import './MarketRisk.css';
+
 
 
 const MarketRisk = () => {
@@ -60,27 +62,13 @@ const MarketRisk = () => {
   },
   // only update the effect if the ref element changed
   [ref.current])
-  
-  let getData = async ()=> {
 
-    let response = await fetch(`http://127.0.0.1:8000/risk/api/market_risk_data/${fundNum}/${date}`, {
-        method:'GET',
-        headers:{
-            'Content-Type':'application/json'
-        },
-        //body:JSON.stringify({'refresh':authTokens?.refresh})
-    })
-
-    let data = await response.json()
-    
-    if (response.status === 200){
-      setData(data)
-    }else{
-        console.log('ERROR LOADING DATA')
-        // Update here?
-    }
+  const getData = async () => {
+    console.log('NEW NEW MARKET RISK RISK')
+    const data = await fetchData2(`risk/api/market_risk_data/${fundNum}/${date}`)
+    setData(data)
   }
-
+  
   console.log('DATAAAAAAAAAAAAAA')
   console.log(data)
   
@@ -151,9 +139,6 @@ const MarketRisk = () => {
                 <tr key={index}>
                   <th>{data['parametric_var']['tickers'][index]}</th>
                   {row.map((value,index)=>{
-                    console.log('VALUE!!!!!!!!!!!!!!!!!!')
-                    console.log(value)
-                    console.log(value.value)
                     return <td key={index} className={Number(value) > 0 ? 'text-success' : 'text-danger'}>{value}</td>
                   })}
                 </tr>

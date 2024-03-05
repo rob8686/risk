@@ -2,12 +2,15 @@ import {Container, Row, Col, Form, Button, InputGroup } from "react-bootstrap";
 import { useNavigate } from 'react-router-dom';
 import AuthContext from './AuthContext.js';
 import { useContext } from 'react';
+import { fundPostData } from "../services/ApiService.js";
 
 
 const CreateFund = () => {
 
   const {authTokens, logoutUser} = useContext(AuthContext)  
   const navigate = useNavigate();
+  console.log('STRING AUTH JWT')
+  //console.log(String(authTokens.access))
   
   const createFund = async(e) =>{
     e.preventDefault();
@@ -35,7 +38,7 @@ const CreateFund = () => {
     }
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit2 = (e) => {
         e.preventDefault();
         if (authTokens){
             createFund(e)  
@@ -44,6 +47,17 @@ const CreateFund = () => {
             navigate('/login');
         }
     }  
+
+    const handleSubmit = async(e) => {
+        e.preventDefault();
+        await fundPostData('api/fund/',navigate, {
+            name: e.target.fundname.value, 
+            currency: e.target.currency.value, 
+            aum: e.target.aum.value, 
+            benchmark:parseInt(e.target.benchmark.value), 
+            liquidity_limit: e.target.liquidity.value
+        })}
+
 
 
   return (
