@@ -31,7 +31,7 @@ const Positions = (props) => {
 
 
     const handleClick = async (event,positionId) => {
-      await deleteData2(`position/${positionId}/`)
+      await deleteData2(`api/position/${positionId}/`)
       getPositions(fundNum)
     }
 

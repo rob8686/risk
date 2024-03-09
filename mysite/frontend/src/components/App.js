@@ -30,21 +30,6 @@ const App = () => {
   const [pathname, setPathname] = useState([window.location.pathname])
   const currentURL = window.location.href // returns the absolute URL of a page
 
-  useEffect(() => {
-    getFunds()
-  }, []) 
-
-  const getFunds = async () => {
-    const data = await fetchData2('api/fund/')
-    setFunds(data)
-  }
-
-  const fetchData = async (url, requestOptions = '') => {
-    const response = (requestOptions === '') ?  await fetch(url) : await fetch(url,requestOptions);
-    const data = await response.json();
-    return data; 
-  }
-
   const constainerStyle = {
     //backgroundColor: '#3b4054', // set your desired background color here
     height: '100vh'
@@ -81,8 +66,8 @@ const App = () => {
               <Col id="page-content-wrapper" style={{ paddingTop: 20 }}>
                 <div style={divStyle}>
                   <Routes>
-                    <Route path="/" element={<Funds data={funds} getFunds={getFunds} fetchData={fetchData}/>}/>
-                    <Route path="/create_fund" element={<CreateFund getFunds={getFunds} />}/>
+                    <Route path="/" element={<Funds data={funds}/>}/>
+                    <Route path="/create_fund" element={<CreateFund />}/>
                     <Route path="/positions/:id" element={<Positions/>}/>
                     <Route path="/liquidity/:id/:date" element={<Liquidity/>}/>
                     <Route path="/performance/:id/:date" element={<Performance/>}/>

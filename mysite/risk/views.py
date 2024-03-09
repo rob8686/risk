@@ -10,6 +10,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from requests.exceptions import HTTPError
 from django.contrib.auth.models import User
 import json
+import jwt
 
 class PositionWritePermission(BasePermission):
     """
@@ -21,6 +22,9 @@ class PositionWritePermission(BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
             return True
+        print('DELETE USER')
+        print(request.user)
+        print(obj.fund.owner)
         return request.user == obj.fund.owner
 
 
@@ -30,6 +34,7 @@ class FundViewSet(viewsets.ModelViewSet):
 
     Provides CRUD operations (Create, Read, Update, Delete) for the Fund model.
     """
+
     permission_classes = [IsAuthenticatedOrReadOnly]
     authentication_classes = [JWTAuthentication]
     queryset = Fund.objects.all()
@@ -77,7 +82,7 @@ class PositionViewSet(viewsets.ModelViewSet):
             return Response('Only fund owner can create positions.', status.HTTP_401_UNAUTHORIZED, template_name=None, headers=None, content_type=None)
 
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True) # review
+        serializer.is_valid(raise_exception=True)
 
         try:
             self.perform_create(serializer)

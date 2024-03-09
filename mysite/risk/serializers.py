@@ -22,7 +22,7 @@ class FundSerializer(serializers.ModelSerializer):
         Creates a position instance. 
         If the related security already exists use that or else use create a new security object.
         """
-
+        print('CREATE FUND HERE!!!!!!!!!!!!!!!!!')
         validated_data['owner'] = self.context['request'].user
         obj = Fund.objects.create(**validated_data)
         return obj       

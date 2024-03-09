@@ -1,43 +1,22 @@
 import {Container, Row, Col, Form, Button } from "react-bootstrap";
 import { useNavigate } from 'react-router-dom';
+import {userPostData} from '../services/ApiService.js'
  
 
 const CreateUser = () => {
 
     const navigate = useNavigate();
 
-    const createUser = async(e) =>{
-        e.preventDefault();
-        const response = await fetch('http://127.0.0.1:8000/login/create/',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json'
-            },
-            body:JSON.stringify({
-                'username':e.target.username.value,
-                'password':e.target.password.value,
-            })
-        })
-        const data = await response.json()
-        console.log(data)
-        if(response.status ===201){
-            alert(response.status)
-            //navigate('/login');
-        }else{
-            alert(response.status)
-        }
-    }
-
-    const handleSubmit = (e) => {
+    const handleSubmit = async(e) => {
         e.preventDefault();
         if (e.target.password.value === e.target.repeat_password.value){
-            createUser(e)  
+            await userPostData('login/create/', navigate, {username: e.target.username.value, password: e.target.password.value})
         }
         else{
             alert('Passwords do not match');
         }
-    }  
-
+    }
+    
     return (
     <Container fluid>
         <Row className="vh-100">

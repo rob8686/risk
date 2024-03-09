@@ -8,57 +8,18 @@ import { fundPostData } from "../services/ApiService.js";
 const CreateFund = () => {
 
   const {authTokens, logoutUser} = useContext(AuthContext)  
-  const navigate = useNavigate();
-  console.log('STRING AUTH JWT')
-  //console.log(String(authTokens.access))
-  
-  const createFund = async(e) =>{
-    e.preventDefault();
-    const response = await fetch('http://127.0.0.1:8000/api/fund/',{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'Authorization':'Bearer ' + String(authTokens.access)
-        },
-        body:JSON.stringify({
-            'name':e.target.fundname.value,
-            'currency':e.target.currency.value,
-            'aum':e.target.aum.value,
-            'benchmark':parseInt(e.target.benchmark.value),
-            'liquidity_limit':e.target.liquidity.value,
-        })
-    })
-    const data = await response.json()
-    console.log(data)
-    if(response.status ===201){
-        alert(response.status)
-        navigate('/');
-    }else{
-        alert(response.status)
-    }
-    }
+  const user_navigate = useNavigate();
 
-    const handleSubmit2 = (e) => {
-        e.preventDefault();
-        if (authTokens){
-            createFund(e)  
-        }
-        else{
-            navigate('/login');
-        }
-    }  
 
     const handleSubmit = async(e) => {
-        e.preventDefault();
-        await fundPostData('api/fund/',navigate, {
-            name: e.target.fundname.value, 
-            currency: e.target.currency.value, 
-            aum: e.target.aum.value, 
-            benchmark:parseInt(e.target.benchmark.value), 
-            liquidity_limit: e.target.liquidity.value
-        })}
-
-
+    e.preventDefault();
+    await fundPostData('api/fund/',user_navigate, {
+        name: e.target.fundname.value, 
+        currency: e.target.currency.value, 
+        aum: e.target.aum.value, 
+        benchmark:parseInt(e.target.benchmark.value), 
+        liquidity_limit: e.target.liquidity.value
+    })}
 
   return (
     <Container fluid>

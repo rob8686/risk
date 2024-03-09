@@ -6,40 +6,29 @@ import RiskTable from './RiskTable.js';
 import RiskButton from './RiskButton.js';
 import React from 'react';
 import AuthContext from './AuthContext.js'
+import {fetchData2} from '../services/ApiService.js'
 
 const Funds = (props) => {
-  //const [data, setData] = useState([props.data])
   const [funds, setFunds] = useState([])
   const {authTokens, logoutUser} = useContext(AuthContext)
   const location = useLocation();
+  
 
   useEffect(() => {
     getFunds()
   }, [location]) 
 
-  const refresh = async (fundId, fundCurrency, last_date, requestOptions = '') => {
-    console.log('DATEEEEEEEEEEEEEEEEEEEEEEEEEE')
-    console.log(last_date)
-    console.log(fundCurrency)
-    //const response = await props.fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${fundBenchmark}`, requestOptions)
-    const response = await fetchData(`http://127.0.0.1:8000/risk/api/risk_data/${fundId}/${fundCurrency}/${last_date}`, requestOptions)
-    getFunds()
-  }  
-
-  const handleClick = (event, fundId, fundCurrency, last_date) => {
-    refresh(fundId, fundCurrency, last_date)
+  const getFunds = async () => {
+    const data = await fetchData2('api/fund/')
+    setFunds(data)
   }
 
-const getFunds = async () => {
-  const FundsFromServer = await fetchData('http://127.0.0.1:8000/api/fund/')
-  setFunds(FundsFromServer)
-}
-
-const fetchData = async (url, requestOptions = '') => {
-  const response = (requestOptions === '') ?  await fetch(url) : await fetch(url,requestOptions);
-  const data = await response.json();
-  return data; 
-}
+// remove benchmark 
+const handleClick = async(e,fundId, fundCurrency,fund_benchmark) => {
+  e.preventDefault();
+  await fetchData2(`risk/api/risk_data/${fundId}/${fundCurrency}/${fund_benchmark}`)
+  getFunds()
+}  
 
   const columns = [
     {Header: 'Id', accessor: 'id'},
@@ -58,11 +47,8 @@ const fetchData = async (url, requestOptions = '') => {
     typeof value === 'number' ? <div style={{ textAlign: 'center' }}>{value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div> : value,
     },
     {Header: 'Date', accessor: 'last_date',},
-    //{Header: 'liquidity_limit', accessor: 'liquidity_limit',},
-    //{Header: 'Benchmark', accessor: 'benchmark',},
     {Header: 'Portfolio', accessor: row => 'Portfolio',
     Cell: ({ cell }) => (
-      //<Link to={`/positions/?fund=${cell.row.values.id}`}>
       <Link to={`/positions/${cell.row.values.id}`}>
         <Button value='portfolio'>
           Portfolio
@@ -94,11 +80,6 @@ const fetchData = async (url, requestOptions = '') => {
       </Link>
     )},
   ]
-
-
-  //if (!funds.length) return <div>Loading...</div>
-  // <div style={{backgroundColor:'white', margin:'10px', padding:'10px', border: '5px solid blue',}}>
-  // <RiskTable style='responsive striped bordered hover' data={funds} columns={columns}/>
 
   return (
     <div className='content'>
