@@ -10,7 +10,6 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from requests.exceptions import HTTPError
 from django.contrib.auth.models import User
 import json
-import jwt
 
 class PositionWritePermission(BasePermission):
     """

@@ -435,11 +435,14 @@ class LiquidityManager(models.Manager):
             result_list.append(aggregate_data)
         
         result_dict['result'] = result_list
+        print('result_list result_list result_list')
+        print(result_list)
         result_dict['cumulative'] = self.cumulative_liquidity(result_list)
         status = self.calc_status(result_list,fund_id)
         result_dict['status'] = status
 
         fund = Fund.objects.filter(id=fund_id)[0]
+        result_dict['fund'] = fund.name
         fund.liquidity_status = status
         fund.save()
 
@@ -466,7 +469,11 @@ class LiquidityManager(models.Manager):
             cumulative_50 = cumulative_50 + result_list[1][day]
             cumulative_100 = cumulative_100 + result_list[2][day]
             formatted_day = day.split('_')[1]
-            cumulative_result_list.append({'30':cumulative_30,'50':cumulative_50,'100':cumulative_100,'name':formatted_day})
+            cumulative_result_list.append({
+                '30':cumulative_30,
+                '50':cumulative_50,
+                '100':cumulative_100,
+                'name':formatted_day})
 
         return cumulative_result_list
     

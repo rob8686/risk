@@ -1,0 +1,29 @@
+body{
+    background-color:rgb(240,240,240)
+  }
+
+.content{
+    background-color:white; 
+    margin:10px; 
+    padding:10px; 
+    border-bottom: #3b4054;
+
+}
+
+.white-btm-brdr{
+    border-bottom: solid white;
+}
+
+.table-condensed{
+    font-size: 12px !important;
+  }
+
+.link_formatted{
+  text-decoration: none;
+  color: white !important;
+}
+
+
+
+
+  

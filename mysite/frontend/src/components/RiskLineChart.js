@@ -1,12 +1,9 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import React, { useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label } from 'recharts';
 
 const RiskLineChart = (props) => {
 
-    const [data, setData] = useState([props.data]);
-    
-    return (//aspect={1.6}
-
+    return (
       <ResponsiveContainer width="100%" height="100%" aspect={1.6}>
         <LineChart
           width={900}
@@ -20,10 +17,12 @@ const RiskLineChart = (props) => {
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey={props.dataKey} />
-          <YAxis />
+          <XAxis dataKey={props.dataKey}>
+            <Label value={props.xlabel} offset={0} position="insideBottom" />
+          </XAxis>  
+          <YAxis label={{ value: props.ylabel, angle: -90, position: 'insideLeft' }}/>
           <Tooltip />
-          <Legend />
+          <Legend verticalAlign="top"/>
           {props.lines.map((line)=>{
             return line
           })}

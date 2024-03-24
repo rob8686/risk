@@ -1,18 +1,11 @@
-import { useTable, useSortBy, useFilters, useGlobalFilter, useAsyncDebounce } from 'react-table'
-//import { useColumns } from 'react-table/columns';
+import { useTable, useSortBy, useFilters } from 'react-table'
 import Table from 'react-bootstrap/Table';
-import { useState, useEffect } from 'react'
 import React from 'react';
 import Form from 'react-bootstrap/Form';
 
 const RiskTable = (props) => {
 
     const styleArray = props.style.split(' ');
-    //const { toggleColumn } = useColumns(props.columns)
-
-    //useEffect(() => {
-    //  toggleColumn('columnToHide', false)
-    //}, [toggleColumn])
 
     function DefaultColumnFilter({
         column: { filterValue, preFilteredRows, setFilter },
@@ -29,7 +22,6 @@ const RiskTable = (props) => {
             onChange={e => {
               setFilter(e.target.value || undefined) // Set undefined to remove the filter entirely
             }}
-            //placeholder={`Search ${count} records...`}
           />
         )
       }
@@ -51,8 +43,6 @@ const RiskTable = (props) => {
         () => props.columns,
         []
     )
-
-    //toggleColumn('columnName', false) 
 
     const {
         getTableProps,
