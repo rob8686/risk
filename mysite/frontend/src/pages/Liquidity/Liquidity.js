@@ -22,8 +22,6 @@ function Liquidity() {
 
     const getData = async () => {
       const data = await fetchData2(`risk/api/liquidity_data/${fundNum}/${date}`)
-      console.log('Data!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-      console.log(data)
       setData(data['Liquidity_stats'])
     }
 
